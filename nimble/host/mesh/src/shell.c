@@ -597,6 +597,9 @@ static int cmd_init(int argc, char *argv[])
 	printk("Mesh initialized\n");
 	printk("Use \"pb-adv on\" or \"pb-gatt on\" to enable advertising\n");
 
+	/* Set device key for vendor model */
+	vnd_models[0].keys[0] = BT_MESH_KEY_DEV;
+
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 	bt_mesh_lpn_set_cb(lpn_cb);
 #endif
@@ -754,47 +757,46 @@ struct shell_cmd_help cmd_appidx_help = {
 
 static int cmd_net_send(int argc, char *argv[])
 {
-	struct os_mbuf *msg = NET_BUF_SIMPLE(32);
+	struct os_mbuf *msg = NET_BUF_SIMPLE(UINT8_MAX);
 	struct bt_mesh_msg_ctx ctx = {
-		.send_ttl = BT_MESH_TTL_DEFAULT,
 		.net_idx = net.net_idx,
-		.addr = net.dst,
-		.app_idx = net.app_idx,
-
-	};
-	struct bt_mesh_net_tx tx = {
-		.ctx = &ctx,
-		.src = net.local,
-		.xmit = bt_mesh_net_transmit_get(),
-		.sub = bt_mesh_subnet_get(net.net_idx),
+		.app_idx = BT_MESH_KEY_DEV,
 	};
 	size_t len;
+	u8_t ttl;
+	u16_t dst;
 	int err;
 
-	if (argc < 2) {
-		return -EINVAL;
+	if (argc < 4) {
+		err = -EINVAL;
+		goto done;
 	}
 
-	if (!tx.sub) {
-		printk("No matching subnet for NetKey Index 0x%04x\n",
-		       net.net_idx);
-		return 0;
-	}
+	ttl = strtoul(argv[1], NULL, 0);
+	dst = strtoul(argv[2], NULL, 0);
 
 	net_buf_simple_init(msg, 0);
-	len = hex2bin(argv[1], msg->om_data, net_buf_simple_tailroom(msg) - 4);
-	net_buf_simple_add(msg, len);
+	len = hex2bin(argv[3], msg->om_data, net_buf_simple_tailroom(msg) - 4);
+	net_buf_simple_add_mem(msg, msg->om_data, len);
 
-	err = bt_mesh_trans_send(&tx, msg, NULL, NULL);
+	ctx.send_ttl = ttl;
+	ctx.addr = dst;
+
+	printk("ttl 0x%02x dst 0x%04x payload_len %d\n", ttl,
+	       dst, len);
+
+	err = bt_mesh_model_send(&vnd_models[0], &ctx, msg, NULL, NULL);
 	if (err) {
 		printk("Failed to send (err %d)\n", err);
 	}
 
-	return 0;
+done:
+	os_mbuf_free(msg);
+	return err;
 }
 
 struct shell_cmd_help cmd_net_send_help = {
-	NULL, "<hex string>", NULL
+	NULL, "<ttl> <dst> <hex string>", NULL
 };
 
 static int cmd_iv_update(int argc, char *argv[])
