@@ -53,6 +53,15 @@ static const u8_t default_key[16] = {
 	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 };
 
+/* Model send data */
+#define MODEL_BOUNDS_MAX 2
+
+static struct model_data {
+	struct bt_mesh_model *model;
+	u16_t addr;
+	u16_t appkey_idx;
+} model_bound[MODEL_BOUNDS_MAX];
+
 static struct {
 	u16_t local;
 	u16_t dst;
@@ -178,6 +187,54 @@ health_pub_init(void)
 
 static struct bt_mesh_cfg_cli cfg_cli = {
 };
+
+static void model_bound_cb(u16_t addr, struct bt_mesh_model *model,
+			   u16_t key_idx)
+{
+	int i;
+
+	printk("remote addr 0x%04x key_idx 0x%04x model %p\n",
+	       addr, key_idx, model);
+
+	for (i = 0; i < ARRAY_SIZE(model_bound); i++) {
+		if (!model_bound[i].model) {
+			model_bound[i].model = model;
+			model_bound[i].addr = addr;
+			model_bound[i].appkey_idx = key_idx;
+
+			return;
+		}
+	}
+
+	printk("model_bound is full\n");
+}
+
+static void model_unbound_cb(u16_t addr, struct bt_mesh_model *model,
+			     u16_t key_idx)
+{
+	int i;
+
+	printk("remote addr 0x%04x key_idx 0x%04x model %p\n",
+	       addr, key_idx, model);
+
+	for (i = 0; i < ARRAY_SIZE(model_bound); i++) {
+		if (model_bound[i].model == model) {
+			model_bound[i].model = NULL;
+			model_bound[i].addr = 0x0000;
+			model_bound[i].appkey_idx = BT_MESH_KEY_UNUSED;
+
+			return;
+		}
+	}
+
+	printk("model not found\n");
+}
+
+static struct bt_test_cb bt_test_cb = {
+	.mesh_model_bound = model_bound_cb,
+	.mesh_model_unbound = model_unbound_cb,
+};
+
 
 void show_faults(u8_t test_id, u16_t cid, u8_t *faults, size_t fault_count)
 {
@@ -600,6 +657,10 @@ static int cmd_init(int argc, char *argv[])
 	/* Set device key for vendor model */
 	vnd_models[0].keys[0] = BT_MESH_KEY_DEV;
 
+	if (IS_ENABLED(CONFIG_BT_TESTING)) {
+		bt_test_cb_register(&bt_test_cb);
+	}
+
 #if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 	bt_mesh_lpn_set_cb(lpn_cb);
 #endif
@@ -797,6 +858,68 @@ done:
 
 struct shell_cmd_help cmd_net_send_help = {
 	NULL, "<ttl> <dst> <hex string>", NULL
+};
+
+static int cmd_model_send(int argc, char *argv[])
+{
+	struct bt_mesh_model *model = NULL;
+	struct os_mbuf *msg = NET_BUF_SIMPLE(UINT8_MAX);
+	struct bt_mesh_msg_ctx ctx = {
+		.net_idx = net.net_idx,
+		.app_idx = BT_MESH_KEY_DEV,
+		.send_ttl = BT_MESH_TTL_DEFAULT,
+	};
+	size_t len;
+	u16_t src, dst;
+	int err, i;
+
+	if (argc < 4) {
+		err = -EINVAL;
+		goto done;
+	}
+
+	src = strtoul(argv[1], NULL, 0);
+	dst = strtoul(argv[2], NULL, 0);
+
+	/* Lookup source address */
+	for (i = 0; i < ARRAY_SIZE(model_bound); i++) {
+		if (model_bound[i].model->elem->addr == src) {
+			model = model_bound[i].model;
+			ctx.app_idx = model_bound[i].appkey_idx;
+
+			break;
+		}
+	}
+
+	if (!model) {
+		printk("Model not found\n");
+		err = -EINVAL;
+
+		goto done;
+	}
+
+	net_buf_simple_init(msg, 0);
+	len = hex2bin(argv[3], msg->om_data, net_buf_simple_tailroom(msg) - 4);
+	net_buf_simple_add_mem(msg, msg->om_data, len);
+
+	ctx.addr = dst;
+
+	printk("src 0x%04x dst 0x%04x payload_len %d\n", src,
+	       dst, len);
+
+	err = bt_mesh_model_send(model, &ctx, msg, NULL, NULL);
+	if (err) {
+		printk("Failed to send (err %d)\n", err);
+	}
+
+
+done:
+	os_mbuf_free(msg);
+	return err;
+}
+
+struct shell_cmd_help cmd_model_send_help = {
+	NULL, "<src> <dst> <hex string>", NULL
 };
 
 static int cmd_iv_update(int argc, char *argv[])
@@ -2196,6 +2319,7 @@ static const struct shell_cmd mesh_commands[] = {
 
 	/* Commands which access internal APIs, for testing only */
 	{ "net-send", cmd_net_send, &cmd_net_send_help },
+	{ "model-send", cmd_model_send, &cmd_model_send_help },
 	{ "iv-update", cmd_iv_update, NULL },
 	{ "iv-update-test", cmd_iv_update_test, &cmd_iv_update_test_help },
 	{ "rpl-clear", cmd_rpl_clear, NULL },
