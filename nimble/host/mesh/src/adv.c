@@ -40,6 +40,7 @@
 #define ADV_INT_FAST_MS    20
 
 static s32_t adv_int_min =  ADV_INT_DEFAULT_MS;
+int bt_mesh_scan_filter_policy = 0;
 
 /* TinyCrypt PRNG consumes a lot of stack space, so we need to have
  * an increased call stack whenever it's used.
@@ -371,7 +372,8 @@ int bt_mesh_scan_enable(void)
 {
 	struct ble_gap_disc_params scan_param =
 		{ .passive = 1, .filter_duplicates = 0, .itvl =
-		  MESH_SCAN_INTERVAL, .window = MESH_SCAN_WINDOW };
+		  MESH_SCAN_INTERVAL, .window = MESH_SCAN_WINDOW,
+		.filter_policy = bt_mesh_scan_filter_policy };
 
 	BT_DBG("");
 

@@ -100,6 +100,7 @@ void bt_mesh_reset(void)
 
 	bt_mesh_comp_unprovision();
 
+    bt_mesh_scan_filter_policy = 1;
 	bt_mesh.iv_index = 0;
 	bt_mesh.seq = 0;
 	bt_mesh.iv_update = 0;

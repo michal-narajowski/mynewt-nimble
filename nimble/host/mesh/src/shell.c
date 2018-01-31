@@ -26,6 +26,7 @@
 /* Private includes for raw Network & Transport layer access */
 #include "net.h"
 #include "access.h"
+#include "adv.h"
 #include "mesh_priv.h"
 #include "lpn.h"
 #include "transport.h"
@@ -2344,7 +2345,10 @@ cmd_white_list(int argc, char **argv)
         return EINVAL;
     }
 
-    return ble_gap_wl_set(addrs, addrs_cnt);
+    rc = ble_gap_wl_set(addrs, addrs_cnt);
+    bt_mesh_scan_filter_policy = 1;
+
+    return rc;
 }
 
 static const struct shell_param white_list_params[] = {

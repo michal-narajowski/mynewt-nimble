@@ -12,6 +12,8 @@
 /* Maximum advertising data payload for a single data type */
 #include "mesh/mesh.h"
 
+extern int bt_mesh_scan_filter_policy;
+
 #define BT_MESH_ADV(om) (*(struct bt_mesh_adv **) OS_MBUF_USRHDR(om))
 
 #define BT_MESH_ADV_DATA_SIZE 31
