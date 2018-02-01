@@ -74,6 +74,7 @@ static struct {
 } net = {
 	.local = BT_MESH_ADDR_UNASSIGNED,
 	.dst = BT_MESH_ADDR_UNASSIGNED,
+	.app_idx = BT_MESH_KEY_DEV,
 };
 
 static struct bt_mesh_cfg_srv cfg_srv = {
@@ -990,6 +991,54 @@ static int cmd_appidx(int argc, char *argv[])
 
 struct shell_cmd_help cmd_appidx_help = {
 	NULL, "[AppIdx]", NULL
+};
+
+static int cmd_net_send_random_bytes(int argc, char *argv[])
+{
+	struct os_mbuf *msg = NET_BUF_SIMPLE(UINT16_MAX);
+	struct bt_mesh_msg_ctx ctx = {
+		.addr = net.dst,
+		.net_idx = net.net_idx,
+		.app_idx = net.app_idx,
+		.send_ttl = bt_mesh_default_ttl_get()
+	};
+	struct bt_mesh_net_tx tx = {
+		.ctx = &ctx,
+		.src = net.local,
+		.xmit = bt_mesh_net_transmit_get(),
+	};
+	u16_t len;
+	u8_t byte;
+	int err;
+	int i;
+
+	if (argc < 2) {
+		err = -EINVAL;
+		goto done;
+	}
+
+	len = strtoul(argv[1], NULL, 0);
+
+	printk("Sending %d bytes", len);
+
+	net_buf_simple_init(msg, 0);
+
+	for (i = 0, byte = 0; i < len ; ++i) {
+		net_buf_simple_add_u8(msg, byte++);
+	}
+
+	err = bt_mesh_trans_send(&tx, msg, NULL, NULL);
+	if (err) {
+		printk("Failed to send (err %d)\n", err);
+	}
+
+done:
+	os_mbuf_free(msg);
+	return err;
+}
+
+struct shell_cmd_help cmd_net_send_random_bytes_help = {
+	NULL, "<number of bytes>", NULL
 };
 
 static int cmd_net_send(int argc, char *argv[])
@@ -2566,6 +2615,7 @@ static const struct shell_cmd mesh_commands[] = {
 
 	/* Commands which access internal APIs, for testing only */
 	{ "net-send", cmd_net_send, &cmd_net_send_help },
+	{ "net-send-random-bytes", cmd_net_send_random_bytes, &cmd_net_send_random_bytes_help },
 	{ "model-send", cmd_model_send, &cmd_model_send_help },
 	{ "iv-update", cmd_iv_update, NULL },
 	{ "iv-update-test", cmd_iv_update_test, &cmd_iv_update_test_help },
