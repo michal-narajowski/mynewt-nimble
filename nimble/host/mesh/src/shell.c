@@ -31,6 +31,7 @@
 #include "transport.h"
 #include "foundation.h"
 #include "testing.h"
+#include "cmd.h"
 
 /* This should be higher priority (lower value) than main task priority */
 #define BLE_MESH_SHELL_TASK_PRIO 126
@@ -2291,8 +2292,76 @@ static int cmd_print_composition_data(int argc, char *argv[])
 	return 0;
 }
 
+/*****************************************************************************
+ * $white-list                                                               *
+ *****************************************************************************/
+
+#define CMD_WL_MAX_SZ   8
+
+static struct kv_pair cmd_addr_type[] = {
+    { "public",     BLE_ADDR_PUBLIC },
+    { "random",     BLE_ADDR_RANDOM },
+    { NULL }
+};
+
+
+static int
+cmd_white_list(int argc, char **argv)
+{
+    static ble_addr_t addrs[CMD_WL_MAX_SZ];
+    int addrs_cnt;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    addrs_cnt = 0;
+    while (1) {
+        if (addrs_cnt >= CMD_WL_MAX_SZ) {
+            return EINVAL;
+        }
+
+        rc = parse_arg_mac("addr", addrs[addrs_cnt].val);
+        if (rc == ENOENT) {
+            break;
+        } else if (rc != 0) {
+            console_printf("invalid 'addr' parameter\n");
+            return rc;
+        }
+
+        addrs[addrs_cnt].type = parse_arg_kv("addr_type", cmd_addr_type, &rc);
+        if (rc != 0) {
+            console_printf("invalid 'addr' parameter\n");
+            return rc;
+        }
+
+        addrs_cnt++;
+    }
+
+    if (addrs_cnt == 0) {
+        return EINVAL;
+    }
+
+    return ble_gap_wl_set(addrs, addrs_cnt);
+}
+
+static const struct shell_param white_list_params[] = {
+    {"addr", "white-list device addresses, usage: =[XX:XX:XX:XX:XX:XX]"},
+    {"addr_type", "white-list address types, usage: =[public|random]"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help white_list_help = {
+    .summary = "set white-list addresses",
+    .usage = NULL,
+    .params = white_list_params,
+};
+
 static const struct shell_cmd mesh_commands[] = {
 	{ "init", cmd_init, NULL },
+	{ "white-list", cmd_white_list, &white_list_help },
 	{ "timeout", cmd_timeout, &cmd_timeout_help },
 #if MYNEWT_VAL(BLE_MESH_PB_ADV)
 	{ "pb-adv", cmd_pb_adv, &cmd_pb_help },
