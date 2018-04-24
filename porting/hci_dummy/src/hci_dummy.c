@@ -162,6 +162,7 @@ ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
      * mbuf pointed by 'om' contains complete HCI ACL Data packet as defined
      * by Core spec.
      */
+    (void)buf;
 
     os_mbuf_free_chain(om);
 

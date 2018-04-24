@@ -16,36 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#ifndef _NIMBLE_PORT_H
+#define _NIMBLE_PORT_H
 
-#ifndef __CONSOLE_TICKS_H__
-#define __CONSOLE_TICKS_H__
-
-#include <stdarg.h>
-
+#include "os/os_eventq.h"
+#include "os/os_time.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
-static void inline
-console_no_ticks(void)
-{
-}
-
-static void inline
-console_yes_ticks(void)
-{
-}
-
-static char inline
-console_get_ticks(void)
-{
-    return 0;
-}
+int nimble_port_init(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __CONSOLE_PROMPT_H__ */
+#endif /* _NIMBLE_PORT_H */

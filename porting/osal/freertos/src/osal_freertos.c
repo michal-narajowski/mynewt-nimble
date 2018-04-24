@@ -20,7 +20,6 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
-#include "osal/osal.h"
 #include "os/os.h"
 
 static struct os_eventq dflt_evq;
@@ -42,129 +41,18 @@ os_sched_get_current_task(void)
     return xTaskGetCurrentTaskHandle();
 }
 
-os_error_t
-os_mutex_init(struct os_mutex *mu)
+os_sr_t
+os_arch_save_sr(void)
 {
-    if (!mu) {
-        return OS_INVALID_PARM;
-    }
+    /* TODO return value of status register (should map to architecture-specific call) */
 
-    mu->handle = xSemaphoreCreateRecursiveMutex();
-    assert(mu->handle);
-
-    return OS_OK;
+    return 0;
 }
 
-os_error_t
-os_mutex_release(struct os_mutex *mu)
+void
+os_arch_restore_sr(os_sr_t osr)
 {
-    if (!mu) {
-        return OS_INVALID_PARM;
-    }
-
-    assert(mu->handle);
-
-    if (in_isr()) {
-        assert(0);
-    } else {
-        if (xSemaphoreGiveRecursive(mu->handle) != pdPASS) {
-            return OS_BAD_MUTEX;
-        }
-    }
-
-    return OS_OK;
-}
-
-os_error_t
-os_mutex_pend(struct os_mutex *mu, uint32_t timeout)
-{
-    if (!mu) {
-        return OS_INVALID_PARM;
-    }
-
-    assert(mu->handle);
-
-    if (in_isr()) {
-        assert(0);
-    } else {
-        if (xSemaphoreTakeRecursive(mu->handle, timeout) != pdPASS) {
-            return OS_TIMEOUT;
-        }
-    }
-
-    return OS_OK;
-}
-
-os_error_t
-os_sem_init(struct os_sem *sem, uint16_t tokens)
-{
-    if (!sem) {
-        return OS_INVALID_PARM;
-    }
-
-    sem->handle = xSemaphoreCreateCounting(128, tokens);
-    assert(sem->handle);
-
-    return OS_OK;
-}
-
-os_error_t
-os_sem_release(struct os_sem *sem)
-{
-    BaseType_t ret;
-    BaseType_t woken;
-
-    if (!sem) {
-        return OS_INVALID_PARM;
-    }
-
-    assert(sem->handle);
-
-    if (in_isr()) {
-        ret = xSemaphoreGiveFromISR(sem->handle, &woken);
-        assert(ret == pdPASS);
-
-        portYIELD_FROM_ISR(woken);
-    } else {
-        ret = xSemaphoreGive(sem->handle);
-        assert(ret == pdPASS);
-    }
-
-    return OS_OK;
-}
-
-os_error_t
-os_sem_pend(struct os_sem *sem, uint32_t timeout)
-{
-    BaseType_t woken;
-
-    if (!sem) {
-        return OS_INVALID_PARM;
-    }
-
-    assert(sem->handle);
-
-    if (in_isr()) {
-        assert(timeout == 0);
-        if (xSemaphoreTakeFromISR(sem->handle, &woken) != pdPASS) {
-            portYIELD_FROM_ISR(woken);
-            return OS_TIMEOUT;
-        }
-        portYIELD_FROM_ISR(woken);
-    } else {
-        if (xSemaphoreTake(sem->handle, timeout) != pdPASS) {
-            return OS_TIMEOUT;
-        }
-    }
-
-    return OS_OK;
-}
-
-uint16_t
-os_sem_get_count(struct os_sem *sem)
-{
-    /* XXX FreeRTOS 9.x added dedicated API for this - it's the same as below */
-    return uxQueueMessagesWaiting(sem->handle);
+    /* TODO restore value of status register (should map to architecture-specific call) */
 }
 
 struct os_eventq *
@@ -262,6 +150,130 @@ os_eventq_run(struct os_eventq *evq)
     ev->ev_cb(ev);
 }
 
+os_error_t
+os_mutex_init(struct os_mutex *mu)
+{
+    if (!mu) {
+        return OS_INVALID_PARM;
+    }
+
+    mu->handle = xSemaphoreCreateRecursiveMutex();
+    assert(mu->handle);
+
+    return OS_OK;
+}
+
+os_error_t
+os_mutex_pend(struct os_mutex *mu, uint32_t timeout)
+{
+    if (!mu) {
+        return OS_INVALID_PARM;
+    }
+
+    assert(mu->handle);
+
+    if (in_isr()) {
+        assert(0);
+    } else {
+        if (xSemaphoreTakeRecursive(mu->handle, timeout) != pdPASS) {
+            return OS_TIMEOUT;
+        }
+    }
+
+    return OS_OK;
+}
+
+os_error_t
+os_mutex_release(struct os_mutex *mu)
+{
+    if (!mu) {
+        return OS_INVALID_PARM;
+    }
+
+    assert(mu->handle);
+
+    if (in_isr()) {
+        assert(0);
+    } else {
+        if (xSemaphoreGiveRecursive(mu->handle) != pdPASS) {
+            return OS_BAD_MUTEX;
+        }
+    }
+
+    return OS_OK;
+}
+
+os_error_t
+os_sem_init(struct os_sem *sem, uint16_t tokens)
+{
+    if (!sem) {
+        return OS_INVALID_PARM;
+    }
+
+    sem->handle = xSemaphoreCreateCounting(128, tokens);
+    assert(sem->handle);
+
+    return OS_OK;
+}
+
+os_error_t
+os_sem_pend(struct os_sem *sem, uint32_t timeout)
+{
+    BaseType_t woken;
+
+    if (!sem) {
+        return OS_INVALID_PARM;
+    }
+
+    assert(sem->handle);
+
+    if (in_isr()) {
+        assert(timeout == 0);
+        if (xSemaphoreTakeFromISR(sem->handle, &woken) != pdPASS) {
+            portYIELD_FROM_ISR(woken);
+            return OS_TIMEOUT;
+        }
+        portYIELD_FROM_ISR(woken);
+    } else {
+        if (xSemaphoreTake(sem->handle, timeout) != pdPASS) {
+            return OS_TIMEOUT;
+        }
+    }
+
+    return OS_OK;
+}
+
+os_error_t
+os_sem_release(struct os_sem *sem)
+{
+    BaseType_t ret;
+    BaseType_t woken;
+
+    if (!sem) {
+        return OS_INVALID_PARM;
+    }
+
+    assert(sem->handle);
+
+    if (in_isr()) {
+        ret = xSemaphoreGiveFromISR(sem->handle, &woken);
+        assert(ret == pdPASS);
+
+        portYIELD_FROM_ISR(woken);
+    } else {
+        ret = xSemaphoreGive(sem->handle);
+        assert(ret == pdPASS);
+    }
+
+    return OS_OK;
+}
+
+uint16_t
+os_sem_get_count(struct os_sem *sem)
+{
+    return uxSemaphoreGetCount(sem->handle);
+}
+
 static void
 os_callout_timer_cb(TimerHandle_t timer)
 {
@@ -339,7 +351,17 @@ os_time_get(void)
 int
 os_time_ms_to_ticks(uint32_t ms, uint32_t *out_ticks)
 {
+    /* Assume 1000 ticks/sec */
     *out_ticks = ms;
+
+    return OS_OK;
+}
+
+int
+os_time_ticks_to_ms(uint32_t ticks, uint32_t *out_ms)
+{
+    /* Assume 1000 ticks/sec */
+    *out_ms = ticks;
 
     return OS_OK;
 }
@@ -347,19 +369,13 @@ os_time_ms_to_ticks(uint32_t ms, uint32_t *out_ticks)
 uint32_t
 os_time_ms_to_ticks32(uint32_t ms)
 {
+    /* Assume 1000 ticks/sec */
     return ms;
 }
 
 uint32_t
 os_time_ticks_to_ms32(uint32_t ticks)
 {
+    /* Assume 1000 ticks/sec */
     return ticks;
-}
-
-int
-os_task_init(struct os_task *t, const char *name, os_task_func_t func,
-             void *arg, uint8_t prio, os_time_t sanity_itvl,
-             os_stack_t *stack_bottom, uint16_t stack_size)
-{
-    return OS_ENOENT;
 }

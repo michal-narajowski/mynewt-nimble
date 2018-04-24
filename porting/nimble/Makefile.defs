@@ -13,11 +13,14 @@ NIMBLE_INCLUDE := \
 	$(NIMBLE_ROOT)/nimble/host/services/ias/include \
 	$(NIMBLE_ROOT)/nimble/host/services/lls/include \
 	$(NIMBLE_ROOT)/nimble/host/services/tps/include \
-	$(NIMBLE_ROOT)/porting/libnimble/include
+	$(NIMBLE_ROOT)/nimble/host/store/ram/include \
+	$(NIMBLE_ROOT)/porting/nimble/include \
 
 ifneq (,$(NIMBLE_CFG_TINYCRYPT))
+
 NIMBLE_INCLUDE += \
-	$(NIMBLE_ROOT)/ext/tinycrypt/include
+	$(NIMBLE_ROOT)/ext/tinycrypt/include \
+
 endif
 
 NIMBLE_SRC := \
@@ -29,7 +32,6 @@ NIMBLE_SRC := \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_gap.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_gattc.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_gatts.c \
-	$(NIMBLE_ROOT)/nimble/host/src/ble_gatts_lcl.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_hs_adv.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_hs_atomic.c \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_hs.c \
@@ -63,30 +65,37 @@ NIMBLE_SRC := \
 	$(NIMBLE_ROOT)/nimble/host/src/ble_uuid.c \
 	$(NIMBLE_ROOT)/nimble/host/services/ans/src/ble_svc_ans.c \
 	$(NIMBLE_ROOT)/nimble/host/services/bas/src/ble_svc_bas.c \
-	$(NIMBLE_ROOT)/nimble/host/services/bleuart/src/bleuart.c \
 	$(NIMBLE_ROOT)/nimble/host/services/gap/src/ble_svc_gap.c \
 	$(NIMBLE_ROOT)/nimble/host/services/gatt/src/ble_svc_gatt.c \
 	$(NIMBLE_ROOT)/nimble/host/services/ias/src/ble_svc_ias.c \
 	$(NIMBLE_ROOT)/nimble/host/services/lls/src/ble_svc_lls.c \
 	$(NIMBLE_ROOT)/nimble/host/services/tps/src/ble_svc_tps.c \
-	$(NIMBLE_ROOT)/nimble/src/ble_util.c
+	$(NIMBLE_ROOT)/nimble/host/store/ram/src/ble_store_ram.c \
+	$(NIMBLE_ROOT)/nimble/src/ble_util.c \
 
 # Few utils and data structures copied from Mynewt
 NIMBLE_SRC += \
-	$(NIMBLE_ROOT)/porting/libnimble/src/endian.c \
-	$(NIMBLE_ROOT)/porting/libnimble/src/mem.c \
-	$(NIMBLE_ROOT)/porting/libnimble/src/os_mbuf.c \
-	$(NIMBLE_ROOT)/porting/libnimble/src/os_mempool.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/nimble_port.c \
+
+# Few utils and data structures copied from Mynewt
+NIMBLE_SRC += \
+	$(NIMBLE_ROOT)/porting/nimble/src/endian.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/mem.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/os_mbuf.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/os_mempool.c \
+	$(NIMBLE_ROOT)/porting/nimble/src/os_msys_init.c \
 
 # TinyCrypt (for SM)
 ifneq (,$(NIMBLE_CFG_TINYCRYPT))
+
 NIMBLE_SRC += \
 	$(NIMBLE_ROOT)/ext/tinycrypt/src/aes_decrypt.c \
 	$(NIMBLE_ROOT)/ext/tinycrypt/src/aes_encrypt.c \
 	$(NIMBLE_ROOT)/ext/tinycrypt/src/cmac_mode.c \
 	$(NIMBLE_ROOT)/ext/tinycrypt/src/ecc.c \
 	$(NIMBLE_ROOT)/ext/tinycrypt/src/ecc_dh.c \
-	$(NIMBLE_ROOT)/ext/tinycrypt/src/utils.c
+	$(NIMBLE_ROOT)/ext/tinycrypt/src/utils.c \
+
 endif
 
 NIMBLE_OBJ := $(NIMBLE_SRC:.c=.o)

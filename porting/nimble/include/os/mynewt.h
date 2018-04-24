@@ -17,39 +17,11 @@
  * under the License.
  */
 
-#ifndef __CONSOLE_PROMPT_H__
-#define __CONSOLE_PROMPT_H__
+#ifndef H_OS_MYNEWT_
+#define H_OS_MYNEWT_
 
-#include <stdarg.h>
+#include "syscfg/syscfg.h"
+#include "sysinit/sysinit.h"
+#include "os/os.h"
 
-#ifdef __cplusplus
-extern "C" {
 #endif
-
-/* print console prompt */
-static void inline
-console_print_prompt(void)
-{
-}
-
-/* set the console prompt character */
-static void inline
-console_set_prompt(char ch)
-{
-}
-
-static void inline
-console_no_prompt(void)
-{
-}
-
-static void inline
-console_yes_prompt(void)
-{
-}
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __CONSOLE_PROMPT_H__ */

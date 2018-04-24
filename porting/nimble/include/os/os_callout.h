@@ -19,17 +19,13 @@
 #ifndef _OS_CALLOUT_H
 #define _OS_CALLOUT_H
 
+#include "osal/osal.h"
 #include "os/os_eventq.h"
 #include "os/os_time.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct os_callout {
-    uint32_t c_ticks;
-    int dummy;
-};
 
 void os_callout_init(struct os_callout *co, struct os_eventq *evq,
                      os_event_fn *ev_cb, void *ev_arg);

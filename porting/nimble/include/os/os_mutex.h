@@ -20,13 +20,11 @@
 #ifndef _OS_MUTEX_H_
 #define _OS_MUTEX_H_
 
+#include "osal/osal.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct os_mutex {
-    int dummy;
-};
 
 os_error_t os_mutex_init(struct os_mutex *mu);
 

@@ -1,53 +1,39 @@
-/**
- * Copyright (c) 2015 - 2018, Nordic Semiconductor ASA
- * 
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form, except as embedded into a Nordic
- *    Semiconductor ASA integrated circuit in a product or a software update for
- *    such product, must reproduce the above copyright notice, this list of
- *    conditions and the following disclaimer in the documentation and/or other
- *    materials provided with the distribution.
- * 
- * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- * 
- * 4. This software, with or without modification, must only be used with a
- *    Nordic Semiconductor ASA integrated circuit.
- * 
- * 5. Any software provided in binary form under this license must not be reverse
- *    engineered, decompiled, modified and/or disassembled.
- * 
- * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+/*
+ * Software in this file is based heavily on code written in the FreeBSD source
+ * code repostiory.  While the code is written from scratch, it contains
+ * many of the ideas and logic flow in the original source, this is a
+ * derivative work, and the following license applies as well:
+ *
+ * Copyright (c) 1982, 1986, 1988, 1991, 1993
+ *  The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
- */
-/** @file
- * @defgroup blinky_example_main main.c
- * @{
- * @ingroup blinky_example_freertos
- *
- * @brief Blinky FreeRTOS Example Application main file.
- *
- * This file contains the source code for a sample application using FreeRTOS to blink LEDs.
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -60,75 +46,118 @@
 #include "sdk_errors.h"
 #include "app_error.h"
 
-#if LEDS_NUMBER <= 2
-#error "Board is not equipped with enough amount of LEDs"
-#endif
+#include "nimble/nimble_port.h"
+#include "host/ble_hs.h"
+#include "services/gap/ble_svc_gap.h"
 
-#define TASK_DELAY        200           /**< Task delay. Delays a LED0 task for 200 ms */
-#define TIMER_PERIOD      1000          /**< Timer period. LED1 timer will expire after 1000 ms */
+static const char gap_name[] = "FreeRTOS NimBLE";
 
-TaskHandle_t  led_toggle_task_handle;   /**< Reference to LED0 toggling FreeRTOS task. */
-TimerHandle_t led_toggle_timer_handle;  /**< Reference to LED1 toggling FreeRTOS timer. */
+static TaskHandle_t nimble_host_task_h;
 
-/**@brief LED0 task entry function.
- *
- * @param[in] pvParameter   Pointer that will be used as the parameter for the task.
- */
-static void led_toggle_task_function (void * pvParameter)
+static void start_advertise(void);
+
+static void
+put_ad(uint8_t ad_type, uint8_t ad_len, const void *ad, uint8_t *buf,
+       uint8_t *len)
 {
-    UNUSED_PARAMETER(pvParameter);
-    while (true)
-    {
-        bsp_board_led_invert(BSP_BOARD_LED_0);
+    buf[(*len)++] = ad_len + 1;
+    buf[(*len)++] = ad_type;
 
-        /* Delay a task for a given number of ticks */
-        vTaskDelay(TASK_DELAY);
+    memcpy(&buf[*len], ad, ad_len);
 
-        /* Tasks must be implemented to never return... */
-    }
+    *len += ad_len;
 }
 
-/**@brief The function to call when the LED1 FreeRTOS timer expires.
- *
- * @param[in] pvParameter   Pointer that will be used as the parameter for the timer.
- */
-static void led_toggle_timer_callback (void * pvParameter)
+static void
+update_ad(void)
 {
-    UNUSED_PARAMETER(pvParameter);
-    bsp_board_led_invert(BSP_BOARD_LED_1);
+    uint8_t ad[BLE_HS_ADV_MAX_SZ];
+    uint8_t ad_len = 0;
+    uint8_t ad_flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+
+    put_ad(BLE_HS_ADV_TYPE_FLAGS, 1, &ad_flags, ad, &ad_len);
+    put_ad(BLE_HS_ADV_TYPE_COMP_NAME, sizeof(gap_name), gap_name, ad, &ad_len);
+
+    ble_gap_adv_set_data(ad, ad_len);
+}
+
+static int
+gap_event_cb(struct ble_gap_event *event, void *arg)
+{
+    switch (event->type) {
+    case BLE_GAP_EVENT_CONNECT:
+        if (event->connect.status) {
+            start_advertise();
+        }
+        break;
+
+    case BLE_GAP_EVENT_DISCONNECT:
+        start_advertise();
+        break;
+    }
+
+    return 0;
+}
+
+static void
+start_advertise(void)
+{
+    struct ble_gap_adv_params advp;
+    int rc;
+
+    update_ad();
+
+    memset(&advp, 0, sizeof advp);
+    advp.conn_mode = BLE_GAP_CONN_MODE_UND;
+    advp.disc_mode = BLE_GAP_DISC_MODE_GEN;
+    rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                           &advp, gap_event_cb, NULL);
+    assert(rc == 0);
+}
+
+static void
+on_sync_cb(void)
+{
+    start_advertise();
+}
+
+static void
+nimble_host_task(void *param)
+{
+    ble_hs_cfg.sync_cb = on_sync_cb;
+
+    ble_svc_gap_device_name_set(gap_name);
+
+    while (1) {
+        os_eventq_run(os_eventq_dflt_get());
+    }
 }
 
 int main(void)
 {
-    ret_code_t err_code;
+    ret_code_t ret;
 
-    /* Initialize clock driver for better time accuracy in FREERTOS */
-    err_code = nrf_drv_clock_init();
-    APP_ERROR_CHECK(err_code);
+    ret = nrf_drv_clock_init();
+    APP_ERROR_CHECK(ret);
 
-    /* Configure LED-pins as outputs */
     bsp_board_init(BSP_INIT_LEDS);
 
-    /* Create task for LED0 blinking with priority set to 2 */
-    UNUSED_VARIABLE(xTaskCreate(led_toggle_task_function, "LED0", configMINIMAL_STACK_SIZE + 200, NULL, 2, &led_toggle_task_handle));
+    /* Initialize NimBLE porting layer */
+    nimble_port_init();
 
-    /* Start timer for LED1 blinking */
-    led_toggle_timer_handle = xTimerCreate( "LED1", TIMER_PERIOD, pdTRUE, NULL, led_toggle_timer_callback);
-    UNUSED_VARIABLE(xTimerStart(led_toggle_timer_handle, 0));
+    /*
+     * Create task where NimBLE host will run. It is not strictly necessary to
+     * have separate task for NimBLE host, but since it needs to read default
+     * event queue it is just easier to handle it like this.
+     */
+    xTaskCreate(nimble_host_task, "nh", configMINIMAL_STACK_SIZE + 400,
+                NULL, 1, &nimble_host_task_h);
 
-    /* Activate deep sleep mode */
-    SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
-
-    /* Start FreeRTOS scheduler. */
     vTaskStartScheduler();
 
-    while (true)
-    {
-        /* FreeRTOS should not be here... FreeRTOS goes back to the start of stack
-         * in vTaskStartScheduler function. */
+    /* We should never reach this code */
+    assert(0);
+
+    while (true) {
     }
 }
-
-/**
- *@}
- **/

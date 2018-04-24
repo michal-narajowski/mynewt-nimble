@@ -17,30 +17,35 @@
  * under the License.
  */
 
-#ifndef H_SYSINIT_
-#define H_SYSINIT_
+#include <stddef.h>
+#include "os/os.h"
+#include "sysinit/sysinit.h"
+#include "host/ble_hs.h"
+#include "services/gap/ble_svc_gap.h"
+#include "services/gatt/ble_svc_gatt.h"
+#include "services/ans/ble_svc_ans.h"
+#include "services/ias/ble_svc_ias.h"
+#include "services/lls/ble_svc_lls.h"
+#include "services/tps/ble_svc_tps.h"
 
-#include <assert.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define SYSINIT_ASSERT_ACTIVE()
-#define SYSINIT_PANIC_ASSERT(rc) assert(rc);
-
-static inline void sysinit_start(void)
+int
+nimble_port_init(void)
 {
-    /* dummy */
-}
+    void os_msys_init(void);
+    void ble_hci_ram_pkg_init(void);
+    void ble_store_ram_init(void);
 
-static inline void sysinit_end(void)
-{
-    /* dummy */
-}
+    sysinit_start();
+    os_msys_init();
+    ble_hs_init();
+    ble_svc_gap_init();
+    ble_svc_gatt_init();
+    ble_svc_ans_init();
+    ble_svc_ias_init();
+    ble_svc_lls_init();
+    ble_svc_tps_init();
+    ble_store_ram_init();
+    sysinit_end();
 
-#ifdef __cplusplus
+    return 0;
 }
-#endif
-
-#endif

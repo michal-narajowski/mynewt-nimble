@@ -29,10 +29,17 @@
 extern "C" {
 #endif
 
+#define OS_ALIGNMENT            (4)
+#define OS_STACK_ALIGNMENT      (8)
+
+struct os_event;
+
+typedef void os_event_fn(struct os_event *ev);
+
 struct os_event {
-    uint8_t ev_queued;
-    os_event_fn *ev_cb;
-    void *ev_arg;
+    uint8_t ev_queued;          /* Required by porting layer! */
+    os_event_fn *ev_cb;         /* Required by porting layer! */
+    void *ev_arg;               /* Required by porting layer! */
 };
 
 struct os_eventq {
@@ -42,17 +49,15 @@ struct os_eventq {
 struct os_callout {
     struct os_event c_ev;
     struct os_eventq *c_evq;
-    uint32_t c_ticks;
+    uint32_t c_ticks;           /* Required by porting layer! */
     TimerHandle_t c_timer;
 };
 
-struct os_mutex
-{
+struct os_mutex {
     SemaphoreHandle_t handle;
 };
 
-struct os_sem
-{
+struct os_sem {
     SemaphoreHandle_t handle;
 };
 

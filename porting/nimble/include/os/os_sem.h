@@ -21,14 +21,11 @@
 #define _OS_SEM_H_
 
 #include <stdint.h>
+#include "osal/osal.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct os_sem {
-    int dummy;
-};
 
 os_error_t os_sem_init(struct os_sem *sem, uint16_t tokens);
 

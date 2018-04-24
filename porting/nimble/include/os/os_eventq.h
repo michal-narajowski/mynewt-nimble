@@ -21,24 +21,13 @@
 #define _OS_EVENTQ_H
 
 #include <stdint.h>
+#include "osal/osal.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct os_event;
-
-typedef void os_event_fn(struct os_event *ev);
-
-struct os_event {
-    uint8_t ev_queued;
-    os_event_fn *ev_cb;
-    void *ev_arg;
-};
-
-struct os_eventq {
-    int dummy;
-};
+#define OS_EVENT_QUEUED(__ev) ((__ev)->ev_queued)
 
 void os_eventq_init(struct os_eventq *evq);
 
@@ -53,8 +42,6 @@ void os_eventq_run(struct os_eventq *evq);
 void os_eventq_remove(struct os_eventq *evq, struct os_event *ev);
 
 struct os_eventq *os_eventq_dflt_get(void);
-
-int OS_EVENT_QUEUED(struct os_event *ev);
 
 #ifdef __cplusplus
 }

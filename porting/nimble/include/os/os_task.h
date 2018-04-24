@@ -21,14 +21,11 @@
 #define _OS_TASK_H
 
 #include <stdint.h>
+#include "osal/osal.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct os_task {
-    int dummy;
-};
 
 typedef void (*os_task_func_t)(void *);
 
