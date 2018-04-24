@@ -131,14 +131,21 @@ nrf52832_xxaa: ASMFLAGS += -D__STACK_SIZE=8192
 # that may need symbols provided by these libraries.
 LIB_FILES += -lc -lnosys -lm
 
-# NimBLE
+# Configure NimBLE variables
 NIMBLE_ROOT := $(PROJ_DIR)/../../..
 NIMBLE_CFG_TINYCRYPT := 1
-include $(NIMBLE_ROOT)/porting/libnimble/Makefile.defs
-SRC_FILES += $(NIMBLE_SRC)
-INC_FOLDERS += $(NIMBLE_INCLUDE)
+include $(NIMBLE_ROOT)/porting/nimble/Makefile.defs
 
-$(print $(NIMBLE_ROOT))
+# Add FreeRTOS OSAL, dummy HCI transport and all NimBLE sources to build
+SRC_FILES += \
+	$(NIMBLE_ROOT)/porting/osal/freertos/src/osal_freertos.c \
+	$(NIMBLE_ROOT)/porting/hci_dummy/src/hci_dummy.c \
+	$(NIMBLE_SRC) \
+
+# Add FreeRTOS OSAL and all NimBLE directories to include paths
+INC_FOLDERS += \
+	$(NIMBLE_ROOT)/porting/osal/freertos/include \
+	$(NIMBLE_INCLUDE) \
 
 .PHONY: default help
 
