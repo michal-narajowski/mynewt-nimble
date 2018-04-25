@@ -136,10 +136,10 @@ NIMBLE_ROOT := $(PROJ_DIR)/../../..
 NIMBLE_CFG_TINYCRYPT := 1
 include $(NIMBLE_ROOT)/porting/nimble/Makefile.defs
 
-# Add FreeRTOS OSAL, dummy HCI transport and all NimBLE sources to build
+# Add FreeRTOS OSAL, UART HCI transport for nRF5 SDK and all NimBLE sources to build
 SRC_FILES += \
 	$(NIMBLE_ROOT)/porting/osal/freertos/src/osal_freertos.c \
-	$(NIMBLE_ROOT)/porting/hci_dummy/src/hci_dummy.c \
+	$(PROJ_DIR)/hci_uart_nrf5_sdk.c \
 	$(NIMBLE_SRC) \
 
 # Add FreeRTOS OSAL and all NimBLE directories to include paths
