@@ -21,7 +21,7 @@
 #define _OS_EVENTQ_H
 
 #include <stdint.h>
-#include "osal/osal.h"
+#include "nimble_osal/osal.h"
 
 #ifdef __cplusplus
 extern "C" {

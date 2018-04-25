@@ -20,7 +20,7 @@
 #ifndef _OS_ARCH_H
 #define _OS_ARCH_H
 
-#include "osal/osal.h"
+#include "nimble_osal/osal.h"
 #include "os/os_error.h"
 
 #ifdef __cplusplus

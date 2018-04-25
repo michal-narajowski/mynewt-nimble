@@ -20,7 +20,7 @@
 #ifndef _OS_H
 #define _OS_H
 
-#include "osal/osal.h"
+#include "nimble_osal/osal.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -20,7 +20,7 @@
 #ifndef _OS_MUTEX_H_
 #define _OS_MUTEX_H_
 
-#include "osal/osal.h"
+#include "nimble_osal/osal.h"
 
 #ifdef __cplusplus
 extern "C" {

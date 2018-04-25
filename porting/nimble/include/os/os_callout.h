@@ -19,7 +19,7 @@
 #ifndef _OS_CALLOUT_H
 #define _OS_CALLOUT_H
 
-#include "osal/osal.h"
+#include "nimble_osal/osal.h"
 #include "os/os_eventq.h"
 #include "os/os_time.h"
 
