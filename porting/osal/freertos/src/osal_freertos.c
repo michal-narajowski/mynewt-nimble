@@ -23,10 +23,12 @@
 #include "os/os.h"
 
 static struct os_eventq dflt_evq;
+#define portVECTACTIVE_MASK					( 0xFFUL )
+#define portNVIC_INT_CTRL_REG             ( * ( ( volatile uint32_t * ) 0xe000ed04 ) )
 
 static inline bool in_isr()
 {
-    return (SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) != 0;
+	return (portNVIC_INT_CTRL_REG & portVECTACTIVE_MASK) != 0;
 }
 
 int
