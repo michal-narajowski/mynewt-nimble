@@ -104,7 +104,9 @@ ble_svc_ias_access(uint16_t conn_handle, uint16_t attr_handle,
                                    sizeof ble_svc_ias_alert_level,
                                    &ble_svc_ias_alert_level, NULL);
         /* Call the IAS event function */
-        ble_svc_ias_cb_fn(ble_svc_ias_alert_level);
+        if (ble_svc_ias_cb_fn) {
+			ble_svc_ias_cb_fn(ble_svc_ias_alert_level);
+        }
         return rc;
 
     default:
