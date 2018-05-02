@@ -43,6 +43,8 @@ void os_eventq_remove(struct os_eventq *evq, struct os_event *ev);
 
 struct os_eventq *os_eventq_dflt_get(void);
 
+int os_eventq_is_empty(struct os_eventq *evq);
+
 #ifdef __cplusplus
 }
 #endif

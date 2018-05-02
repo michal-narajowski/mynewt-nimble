@@ -102,6 +102,12 @@ os_eventq_put(struct os_eventq *evq, struct os_event *ev)
     assert(ret == pdPASS);
 }
 
+int
+os_eventq_is_empty(struct os_eventq *evq)
+{
+	return true;
+}
+
 void
 os_eventq_remove(struct os_eventq *evq, struct os_event *ev)
 {

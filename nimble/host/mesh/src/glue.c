@@ -283,7 +283,7 @@ net_buf_simple_add(struct os_mbuf *om, uint8_t len)
 bool
 k_fifo_is_empty(struct os_eventq *q)
 {
-    return STAILQ_EMPTY(&q->evq_list);
+    return os_eventq_is_empty(q);
 }
 
 void * net_buf_get(struct os_eventq *fifo, s32_t t)
