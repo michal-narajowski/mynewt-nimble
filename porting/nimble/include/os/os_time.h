@@ -73,6 +73,10 @@ uint32_t os_time_ms_to_ticks32(uint32_t ms);
 
 uint32_t os_time_ticks_to_ms32(uint32_t ticks);
 
+int64_t os_get_uptime_usec(void);
+
+void os_time_delay(int32_t ticks);
+
 #ifdef __cplusplus
 }
 #endif

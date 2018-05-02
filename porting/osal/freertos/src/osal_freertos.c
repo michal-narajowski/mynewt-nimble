@@ -87,6 +87,21 @@ os_eventq_get(struct os_eventq *evq)
     return ev;
 }
 
+struct os_event *os_eventq_get_no_wait(struct os_eventq *evq)
+{
+	return NULL;
+}
+
+void os_sched(struct os_task *t)
+{
+
+}
+
+os_time_t os_callout_remaining_ticks(struct os_callout *co, os_time_t time)
+{
+	return 0;
+}
+
 void
 os_eventq_put(struct os_eventq *evq, struct os_event *ev)
 {
@@ -100,6 +115,12 @@ os_eventq_put(struct os_eventq *evq, struct os_event *ev)
 
     ret = xQueueSendToBack(evq->q, &ev, 0);
     assert(ret == pdPASS);
+}
+
+struct os_event *
+os_eventq_poll(struct os_eventq **evq, int nevqs, os_time_t timo)
+{
+	return NULL;
 }
 
 int
@@ -386,4 +407,14 @@ os_time_ticks_to_ms32(uint32_t ticks)
 {
     /* Assume 1000 ticks/sec */
     return ticks;
+}
+
+int64_t os_get_uptime_usec(void)
+{
+	return 0;
+}
+
+void os_time_delay(int32_t ticks)
+{
+
 }

@@ -17,40 +17,17 @@
  * under the License.
  */
 
-#ifndef _OS_EVENTQ_H
-#define _OS_EVENTQ_H
-
-#include <stdint.h>
-#include "nimble_osal/osal.h"
+#ifndef H_CONSOLE_
+#define H_CONSOLE_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define os_time_t uint32_t
-
-#define OS_EVENT_QUEUED(__ev) ((__ev)->ev_queued)
-
-void os_eventq_init(struct os_eventq *evq);
-
-void os_eventq_put(struct os_eventq *evq, struct os_event *ev);
-
-struct os_event *os_eventq_get_no_wait(struct os_eventq *evq);
-
-struct os_event *os_eventq_get(struct os_eventq *evg);
-
-void os_eventq_run(struct os_eventq *evq);
-
-struct os_event *os_eventq_poll(struct os_eventq **, int, os_time_t);
-
-void os_eventq_remove(struct os_eventq *evq, struct os_event *ev);
-
-struct os_eventq *os_eventq_dflt_get(void);
-
-int os_eventq_is_empty(struct os_eventq *evq);
+#define console_printf ipf_printf
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _OS_EVENTQ_H */
+#endif
