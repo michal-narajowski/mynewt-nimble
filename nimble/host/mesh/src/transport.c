@@ -402,9 +402,11 @@ static int send_seg(struct bt_mesh_net_tx *net_tx, struct os_mbuf *sdu,
 		}
 	}
 
+#if MYNEWT_VAL(BLE_MESH_LOW_POWER)
 	if (bt_mesh_lpn_established()) {
 		bt_mesh_lpn_poll();
 	}
+#endif
 
 	return 0;
 }
