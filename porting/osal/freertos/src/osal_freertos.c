@@ -74,22 +74,31 @@ os_eventq_init(struct os_eventq *evq)
 }
 
 struct os_event *
-os_eventq_get(struct os_eventq *evq)
+os_eventq_get_timo(struct os_eventq *evq, os_time_t timo)
 {
-    struct os_event *ev;
+    struct os_event *ev = NULL;
     BaseType_t ret;
 
-    ret = xQueueReceive(evq->q, &ev, portMAX_DELAY);
-    assert(ret == pdPASS);
+    ret = xQueueReceive(evq->q, &ev, timo);
+    assert(ret == pdPASS || ret == errQUEUE_EMPTY);
 
-    ev->ev_queued = 0;
+    if (ev) {
+    	ev->ev_queued = 0;
+    }
 
     return ev;
+
+}
+
+struct os_event *
+os_eventq_get(struct os_eventq *evq)
+{
+	return os_eventq_get_timo(evq, portMAX_DELAY);
 }
 
 struct os_event *os_eventq_get_no_wait(struct os_eventq *evq)
 {
-	return NULL;
+	return os_eventq_get_timo(evq, 0);
 }
 
 void os_sched(struct os_task *t)
@@ -97,9 +106,22 @@ void os_sched(struct os_task *t)
 
 }
 
-os_time_t os_callout_remaining_ticks(struct os_callout *co, os_time_t time)
+os_time_t os_callout_remaining_ticks(struct os_callout *co, os_time_t now)
 {
-	return 0;
+	os_time_t rt;
+	uint32_t exp = xTimerGetExpiryTime(co->c_timer);
+
+	taskENTER_CRITICAL();
+
+	if (exp > now) {
+		rt = exp - now;
+	} else {
+		return 0;
+	}
+
+	taskEXIT_CRITICAL();
+
+	return rt;
 }
 
 void
@@ -116,17 +138,62 @@ os_eventq_put(struct os_eventq *evq, struct os_event *ev)
     ret = xQueueSendToBack(evq->q, &ev, 0);
     assert(ret == pdPASS);
 }
+struct os_event *
+os_eventq_poll_0timo(struct os_eventq **evq, int nevqs)
+{
+	int i;
+	struct os_event *ev = NULL;
+
+	taskENTER_CRITICAL();
+
+	for (i = 0; i < nevqs; ++i) {
+		ev = os_eventq_get_no_wait(evq[i]);
+		if (ev) {
+			break;
+		}
+	}
+
+	taskEXIT_CRITICAL();
+
+	return ev;
+}
+
+#define QUEUE_LENGTH 32
 
 struct os_event *
 os_eventq_poll(struct os_eventq **evq, int nevqs, os_time_t timo)
 {
-	return NULL;
+	int i;
+	QueueSetHandle_t xQueueSet;
+	struct os_event *ev;
+
+	if (timo == 0) {
+		return os_eventq_poll_0timo(evq, nevqs);
+	}
+
+	taskENTER_CRITICAL();
+
+	xQueueSet = xQueueCreateSet( nevqs * QUEUE_LENGTH );
+
+	for (i = 0; i < nevqs; ++i) {
+		if (!os_eventq_is_empty(evq[i])) {
+			return os_eventq_get_no_wait(evq[i]);
+		}
+
+		xQueueAddToSet(evq[i]->q, xQueueSet);
+	}
+
+	ev = xQueueSelectFromSet(xQueueSet, timo);
+
+	taskEXIT_CRITICAL();
+
+	return ev;
 }
 
 int
 os_eventq_is_empty(struct os_eventq *evq)
 {
-	return true;
+	return xQueueIsQueueEmptyFromISR(evq->q);
 }
 
 void
@@ -416,5 +483,5 @@ int64_t os_get_uptime_usec(void)
 
 void os_time_delay(int32_t ticks)
 {
-
+	vTaskDelay(ticks);
 }
