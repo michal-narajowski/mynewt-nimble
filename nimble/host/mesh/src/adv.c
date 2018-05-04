@@ -313,7 +313,7 @@ void bt_mesh_adv_init(void)
 	os_eventq_init(&adv_queue);
 
 #if MYNEWT
-	os_task_init(&adv_task, "mesh_adv", adv_thread, NULL,
+	os_task_init(&adv_task, "mesh_adv", mesh_adv_thread, NULL,
 	             MYNEWT_VAL(BLE_MESH_ADV_TASK_PRIO), OS_WAIT_FOREVER,
 	             g_blemesh_stack, ADV_STACK_SIZE);
 #endif
