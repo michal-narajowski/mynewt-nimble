@@ -187,12 +187,13 @@ ble_hs_hci_cmd_body_le_set_adv_params(const struct hci_adv_params *adv,
     }
 #endif
 
-    /* Do not check if high duty-cycle directed */
-    if (adv->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
-        if ((adv->adv_itvl_min < itvl) ||
-            (adv->adv_itvl_min > BLE_HCI_ADV_ITVL_MAX)) {
-            return -1;
-        }
+    if (ble_hs_hci_get_hci_version() < BLE_HCI_VER_BCS_5_0) {
+    	/* Do not check if high duty-cycle directed */
+    	if (adv->adv_type != BLE_HCI_ADV_TYPE_ADV_DIRECT_IND_HD) {
+    		if ((adv->adv_itvl_min < itvl) ||
+    				(adv->adv_itvl_min > BLE_HCI_ADV_ITVL_MAX)) {
+    		}
+    	}
     }
 
     put_le16(dst, adv->adv_itvl_min);
