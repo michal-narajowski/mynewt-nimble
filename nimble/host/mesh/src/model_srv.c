@@ -174,6 +174,87 @@ static void light_lightness_set(struct bt_mesh_model *model,
 	light_lightness_status(model, ctx);
 }
 
+static void sensor_dsc_get(struct bt_mesh_model *model,
+			   struct bt_mesh_msg_ctx *ctx,
+			   struct os_mbuf *buf) {
+	struct bt_mesh_sensor_srv_cb *cb = model->user_data;
+	u16_t pid;
+	struct os_mbuf *msg = NET_BUF_SIMPLE(1);
+	uint8_t *data;
+
+	bt_mesh_model_msg_init(msg, OP_SENSOR_DESCRIPTOR_STATUS);
+
+	if (!cb) {
+		goto send;
+	}
+
+	if (buf->om_len == 2) {
+		pid = net_buf_simple_pull_le16(buf);
+	} else if (buf->om_len == 0) {
+		pid = 0;
+	} else {
+		BT_WARN("Wrong payload length");
+		goto done;
+	}
+
+	BT_DBG("PID: 0x%04x", pid);
+
+	data = net_buf_simple_add(msg, (u8_t) (cb->properties_count *
+					       BT_MESH_SENSOR_DSC_LEN));
+
+	if (cb->dsc_get) {
+		cb->dsc_get(model, pid, data);
+	}
+
+send:
+	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
+		BT_ERR("Send status failed");
+	}
+
+done:
+	os_mbuf_free_chain(msg);
+}
+
+static void sensor_get(struct bt_mesh_model *model,
+		       struct bt_mesh_msg_ctx *ctx,
+		       struct os_mbuf *buf) {
+	struct bt_mesh_sensor_srv_cb *cb = model->user_data;
+	u16_t pid;
+	struct os_mbuf *msg = NET_BUF_SIMPLE(1);
+	uint8_t *data;
+
+	bt_mesh_model_msg_init(msg, OP_SENSOR_STATUS);
+
+	if (!cb) {
+		goto send;
+	}
+
+	if (buf->om_len == 2) {
+		pid = net_buf_simple_pull_le16(buf);
+	} else if (buf->om_len == 0) {
+		pid = 0;
+	} else {
+		BT_WARN("Wrong payload length");
+		goto done;
+	}
+
+	BT_DBG("PID: 0x%04x", pid);
+
+	data = net_buf_simple_add(msg, (u8_t) (cb->sensor_data_size));
+
+	if (cb->get) {
+		cb->get(model, pid, data);
+	}
+
+	send:
+	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
+		BT_ERR("Send status failed");
+	}
+
+	done:
+	os_mbuf_free_chain(msg);
+}
+
 const struct bt_mesh_model_op gen_onoff_srv_op[] = {
 	{ OP_GEN_ONOFF_GET, 		0, gen_onoff_get },
 	{ OP_GEN_ONOFF_SET, 		2, gen_onoff_set },
@@ -194,3 +275,20 @@ const struct bt_mesh_model_op light_lightness_srv_op[] = {
 	{ OP_LIGHT_LIGHTNESS_SET_UNACK, 	3, light_lightness_set_unack },
 	BT_MESH_MODEL_OP_END,
 };
+
+const struct bt_mesh_model_op sensor_srv_op[] = {
+	{ OP_SENSOR_DESCRIPTOR_GET, 		0, sensor_dsc_get },
+	{ OP_SENSOR_GET, 			0, sensor_get },
+	BT_MESH_MODEL_OP_END,
+};
+
+void bt_mesh_sensor_mpid(u8_t len, u16_t pid, u8_t *data, u8_t *mpid_len)
+{
+	data[0] = 0;
+	data[0] |= ((len & BIT_MASK(4)) << 1);
+	data[0] |= ((pid & BIT_MASK(3)) << 5);
+	data[1] = 0;
+	data[1] |= ((pid & BIT_MASK(8)) >> 3);
+
+	*mpid_len = 2;
+}
