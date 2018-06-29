@@ -284,11 +284,10 @@ const struct bt_mesh_model_op sensor_srv_op[] = {
 
 void bt_mesh_sensor_mpid(u8_t len, u16_t pid, u8_t *data, u8_t *mpid_len)
 {
-	data[0] = 0;
-	data[0] |= ((len & BIT_MASK(4)) << 1);
-	data[0] |= ((pid & BIT_MASK(3)) << 5);
-	data[1] = 0;
-	data[1] |= ((pid & BIT_MASK(8)) >> 3);
+	data[0] = 1;
+	data[0] |= (len << 1);
+	data[1] = (uint8_t) pid;
+	data[2] = (uint8_t) (pid >> 8);
 
-	*mpid_len = 2;
+	*mpid_len = 3;
 }
