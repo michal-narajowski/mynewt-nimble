@@ -178,9 +178,8 @@ static void sensor_dsc_get(struct bt_mesh_model *model,
 			   struct bt_mesh_msg_ctx *ctx,
 			   struct os_mbuf *buf) {
 	struct bt_mesh_sensor_srv_cb *cb = model->user_data;
-	u16_t pid;
 	struct os_mbuf *msg = NET_BUF_SIMPLE(1);
-	uint8_t *data;
+	u16_t pid;
 
 	bt_mesh_model_msg_init(msg, OP_SENSOR_DESCRIPTOR_STATUS);
 
@@ -190,20 +189,19 @@ static void sensor_dsc_get(struct bt_mesh_model *model,
 
 	if (buf->om_len == 2) {
 		pid = net_buf_simple_pull_le16(buf);
+		BT_DBG("PID: 0x%04x", pid);
+
+		if (cb->dsc_get) {
+			cb->dsc_get(model, pid, buf);
+		}
 	} else if (buf->om_len == 0) {
-		pid = 0;
+		BT_DBG("No PID");
+		if (cb->dsc_get_all) {
+			cb->dsc_get_all(model, buf);
+		}
 	} else {
 		BT_WARN("Wrong payload length");
 		goto done;
-	}
-
-	BT_DBG("PID: 0x%04x", pid);
-
-	data = net_buf_simple_add(msg, (u8_t) (cb->properties_count *
-					       BT_MESH_SENSOR_DSC_LEN));
-
-	if (cb->dsc_get) {
-		cb->dsc_get(model, pid, data);
 	}
 
 send:
@@ -219,9 +217,8 @@ static void sensor_get(struct bt_mesh_model *model,
 		       struct bt_mesh_msg_ctx *ctx,
 		       struct os_mbuf *buf) {
 	struct bt_mesh_sensor_srv_cb *cb = model->user_data;
-	u16_t pid;
 	struct os_mbuf *msg = NET_BUF_SIMPLE(1);
-	uint8_t *data;
+	u16_t pid;
 
 	bt_mesh_model_msg_init(msg, OP_SENSOR_STATUS);
 
@@ -231,27 +228,27 @@ static void sensor_get(struct bt_mesh_model *model,
 
 	if (buf->om_len == 2) {
 		pid = net_buf_simple_pull_le16(buf);
+		BT_DBG("PID: 0x%04x", pid);
+
+		if (cb->get) {
+			cb->get(model, pid, msg);
+		}
 	} else if (buf->om_len == 0) {
-		pid = 0;
+		BT_DBG("No PID");
+		if (cb->get_all) {
+			cb->get_all(model, msg);
+		}
 	} else {
 		BT_WARN("Wrong payload length");
 		goto done;
 	}
 
-	BT_DBG("PID: 0x%04x", pid);
-
-	data = net_buf_simple_add(msg, (u8_t) (cb->sensor_data_size));
-
-	if (cb->get) {
-		cb->get(model, pid, data);
-	}
-
-	send:
+send:
 	if (bt_mesh_model_send(model, ctx, msg, NULL, NULL)) {
 		BT_ERR("Send status failed");
 	}
 
-	done:
+done:
 	os_mbuf_free_chain(msg);
 }
 
@@ -282,12 +279,14 @@ const struct bt_mesh_model_op sensor_srv_op[] = {
 	BT_MESH_MODEL_OP_END,
 };
 
-void bt_mesh_sensor_mpid(u8_t len, u16_t pid, u8_t *data, u8_t *mpid_len)
+int bt_mesh_sensor_mpid(struct os_mbuf *buf, u8_t len, u16_t pid)
 {
+	uint8_t *data;
+
+	data = net_buf_simple_add(buf, 3);
 	data[0] = 1;
 	data[0] |= (len << 1);
 	data[1] = (uint8_t) pid;
 	data[2] = (uint8_t) (pid >> 8);
-
-	*mpid_len = 3;
+	return 3;
 }

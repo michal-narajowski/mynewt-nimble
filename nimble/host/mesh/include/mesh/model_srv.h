@@ -52,11 +52,10 @@ struct bt_mesh_sensor_descriptor {
 } __attribute__((__packed__));
 
 struct bt_mesh_sensor_srv_cb {
-    int (*dsc_get)(struct bt_mesh_model *model, u16_t pid, u8_t *data);
-    int (*get)(struct bt_mesh_model *model, u16_t pid, u8_t *data);
-
-    u8_t properties_count;
-    u8_t sensor_data_size;
+    int (*dsc_get)(struct bt_mesh_model *model, u16_t pid, struct os_mbuf *buf);
+    int (*dsc_get_all)(struct bt_mesh_model *model, struct os_mbuf *buf);
+    int (*get)(struct bt_mesh_model *model, u16_t pid, struct os_mbuf *buf);
+    int (*get_all)(struct bt_mesh_model *model, struct os_mbuf *buf);
 };
 
 extern const struct bt_mesh_model_op sensor_srv_op[];
@@ -65,7 +64,7 @@ extern const struct bt_mesh_model_op sensor_srv_op[];
 	BT_MESH_MODEL(BT_MESH_MODEL_ID_SENSOR_SRV,	\
 		      sensor_srv_op, pub, srv)
 
-void bt_mesh_sensor_mpid(u8_t len, u16_t pid, u8_t *data, u8_t *mpid_len);
+int bt_mesh_sensor_mpid(struct os_mbuf *buf, u8_t len, u16_t pid);
 
 void bt_mesh_set_gen_onoff_srv_cb(struct bt_mesh_gen_onoff_srv_cb *gen_onoff_cb);
 void bt_mesh_set_gen_level_srv_cb(struct bt_mesh_gen_level_srv_cb *gen_level_cb);
