@@ -107,7 +107,7 @@ before_install:
   - go version
 
 install:
-  - git clone https://github.com/runtimeco/mynewt-travis-ci $HOME/ci
+  - git clone -b build-ports https://github.com/michal-narajowski/mynewt-travis-ci $HOME/ci
   - chmod +x $HOME/ci/*.sh
   - $HOME/ci/${TRAVIS_OS_NAME}_travis_install.sh
 
