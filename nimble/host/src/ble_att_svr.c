@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <console/console.h>
 #include "os/os.h"
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
@@ -934,6 +935,7 @@ ble_att_svr_rx_find_info(uint16_t conn_handle, struct os_mbuf **rxom)
     if (start_handle > end_handle || start_handle == 0) {
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
         err_handle = start_handle;
+        console_printf("Invalid handle\n");
         rc = BLE_HS_EBADDATA;
         goto done;
     }
@@ -1247,6 +1249,7 @@ ble_att_svr_rx_find_type_value(uint16_t conn_handle, struct os_mbuf **rxom)
     if (start_handle > end_handle || start_handle == 0) {
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
         err_handle = start_handle;
+        console_printf("Invalid handle\n");
         rc = BLE_HS_EBADDATA;
         goto done;
     }
@@ -1408,6 +1411,7 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
     pktlen = OS_MBUF_PKTLEN(*rxom);
     if (pktlen != sizeof(*req) + 2 && pktlen != sizeof(*req) + 16) {
         /* Malformed packet */
+        console_printf("Malformed packet\n");
         rc = BLE_HS_EBADDATA;
         goto done;
     }
@@ -1428,6 +1432,7 @@ ble_att_svr_rx_read_type(uint16_t conn_handle, struct os_mbuf **rxom)
     if (start_handle > end_handle || start_handle == 0) {
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
         err_handle = start_handle;
+        console_printf("Invalid handle\n");
         rc = BLE_HS_EBADDATA;
         goto done;
     }
@@ -1906,6 +1911,7 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
     pktlen = OS_MBUF_PKTLEN(*rxom);
     if (pktlen != sizeof(*req) + 2 && pktlen != sizeof(*req) + 16) {
         /* Malformed packet */
+        console_printf("Malformed packet\n");
         rc = BLE_HS_EBADDATA;
         goto done;
     }
@@ -1925,6 +1931,7 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
     if (start_handle > end_handle || start_handle == 0) {
         att_err = BLE_ATT_ERR_INVALID_HANDLE;
         err_handle = start_handle;
+        console_printf("Invalid handle\n");
         rc = BLE_HS_EBADDATA;
         goto done;
     }
@@ -1934,6 +1941,7 @@ ble_att_svr_rx_read_group_type(uint16_t conn_handle, struct os_mbuf **rxom)
     if (rc != 0) {
         att_err = BLE_ATT_ERR_INVALID_PDU;
         err_handle = start_handle;
+        console_printf("Invalid PDU\n");
         rc = BLE_HS_EBADDATA;
         goto done;
     }
@@ -2522,6 +2530,7 @@ ble_att_svr_rx_notify(uint16_t conn_handle, struct os_mbuf **rxom)
     handle = le16toh(req->banq_handle);
 
     if (handle == 0) {
+        console_printf("handle == 0\n");
         return BLE_HS_EBADDATA;
     }
 
@@ -2596,6 +2605,7 @@ ble_att_svr_rx_indicate(uint16_t conn_handle, struct os_mbuf **rxom)
     handle = le16toh(req->baiq_handle);
 
     if (handle == 0) {
+        console_printf("handle == 0\n");
         rc = BLE_HS_EBADDATA;
         goto done;
     }

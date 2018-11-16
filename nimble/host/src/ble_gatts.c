@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <console/console.h>
 #include "nimble/ble.h"
 #include "host/ble_uuid.h"
 #include "host/ble_store.h"
@@ -557,6 +558,7 @@ ble_gatts_register_dsc(const struct ble_gatt_svc_def *svc,
     int rc;
 
     if (!ble_gatts_dsc_is_sane(dsc)) {
+        console_printf("dsc not sane\n");
         return BLE_HS_EINVAL;
     }
 
@@ -814,6 +816,7 @@ ble_gatts_register_chr(const struct ble_gatt_svc_def *svc,
     int rc;
 
     if (!ble_gatts_chr_is_sane(chr)) {
+        console_printf("chr not sane\n");
         return BLE_HS_EINVAL;
     }
 
@@ -932,6 +935,7 @@ ble_gatts_register_svc(const struct ble_gatt_svc_def *svc,
     }
 
     if (!ble_gatts_svc_is_sane(svc)) {
+        console_printf("svc not sane\n");
         return BLE_HS_EINVAL;
     }
 
