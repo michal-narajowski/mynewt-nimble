@@ -2716,6 +2716,7 @@ ble_att_svr_reset(void)
     /* Note: prep entries do not get freed here because it is assumed there are
      * no established connections.
      */
+    ble_att_svr_id = 0;
 }
 
 static void
