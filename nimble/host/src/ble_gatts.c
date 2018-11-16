@@ -1221,7 +1221,7 @@ ble_gatts_start(void)
             goto done;
         }
     }
-    ble_gatts_free_svc_defs();
+//    ble_gatts_free_svc_defs();
 
     if (ble_gatts_num_cfgable_chrs == 0) {
         rc = 0;
