@@ -29,14 +29,14 @@
 static void
 ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
 {
-    int8_t rssi;
-    uint8_t advlen;
+//    int8_t rssi;
+//    uint8_t advlen;
     uint8_t status;
     int i;
-    int imax;
-    uint8_t *dptr;
-    char *adv_ptr;
-    char adv_data_buf[32];
+//    int imax;
+//    uint8_t *dptr;
+//    char *adv_ptr;
+//    char adv_data_buf[32];
 
     switch (subev) {
     case BLE_HCI_LE_SUBEV_ENH_CONN_COMPLETE:
@@ -69,31 +69,31 @@ ble_hs_dbg_le_event_disp(uint8_t subev, uint8_t len, uint8_t *evdata)
         }
         break;
     case BLE_HCI_LE_SUBEV_ADV_RPT:
-        advlen = evdata[9];
-        rssi = evdata[10 + advlen];
-        BLE_HS_LOG(DEBUG, "LE advertising report. len=%u num=%u evtype=%u "
-                          "addrtype=%u addr=%x.%x.%x.%x.%x.%x advlen=%u "
-                          "rssi=%d\n", len, evdata[0], evdata[1], evdata[2],
-                   evdata[8], evdata[7], evdata[6], evdata[5],
-                   evdata[4], evdata[3], advlen, rssi);
-        if (advlen) {
-            dptr = &evdata[10];
-            while (advlen > 0) {
-                memset(adv_data_buf, 0, 32);
-                imax = advlen;
-                if (imax > 8) {
-                    imax = 8;
-                }
-                adv_ptr = &adv_data_buf[0];
-                for (i = 0; i < imax; ++i) {
-                    snprintf(adv_ptr, 4, "%02x ", *dptr);
-                    adv_ptr += 3;
-                    ++dptr;
-                }
-                advlen -= imax;
-                BLE_HS_LOG(DEBUG, "%s\n", adv_data_buf);
-            }
-        }
+//        advlen = evdata[9];
+//        rssi = evdata[10 + advlen];
+//        BLE_HS_LOG(DEBUG, "LE advertising report. len=%u num=%u evtype=%u "
+//                          "addrtype=%u addr=%x.%x.%x.%x.%x.%x advlen=%u "
+//                          "rssi=%d\n", len, evdata[0], evdata[1], evdata[2],
+//                   evdata[8], evdata[7], evdata[6], evdata[5],
+//                   evdata[4], evdata[3], advlen, rssi);
+//        if (advlen) {
+//            dptr = &evdata[10];
+//            while (advlen > 0) {
+//                memset(adv_data_buf, 0, 32);
+//                imax = advlen;
+//                if (imax > 8) {
+//                    imax = 8;
+//                }
+//                adv_ptr = &adv_data_buf[0];
+//                for (i = 0; i < imax; ++i) {
+//                    snprintf(adv_ptr, 4, "%02x ", *dptr);
+//                    adv_ptr += 3;
+//                    ++dptr;
+//                }
+//                advlen -= imax;
+//                BLE_HS_LOG(DEBUG, "%s\n", adv_data_buf);
+//            }
+//        }
         break;
     case BLE_HCI_LE_SUBEV_CONN_UPD_COMPLETE:
         status = evdata[0];
