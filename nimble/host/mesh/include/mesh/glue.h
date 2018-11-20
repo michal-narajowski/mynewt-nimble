@@ -25,6 +25,7 @@
 
 #include "syscfg/syscfg.h"
 #include "nimble/nimble_npl.h"
+#include "console/console.h"
 
 #include "os/os_mbuf.h"
 #include "os/queue.h"
@@ -163,11 +164,11 @@
 
 #define BT_DBG(fmt, ...)    \
     if (BT_DBG_ENABLED) { \
-        BLE_HS_LOG(DEBUG, "%s: " fmt "\n", __func__, ## __VA_ARGS__); \
+        console_printf("%s: " fmt "\n", __func__, ## __VA_ARGS__); \
     }
-#define BT_INFO(fmt, ...)   BLE_HS_LOG(INFO, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
-#define BT_WARN(fmt, ...)   BLE_HS_LOG(WARN, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
-#define BT_ERR(fmt, ...)    BLE_HS_LOG(ERROR, "%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_INFO(fmt, ...)   console_printf("%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_WARN(fmt, ...)   console_printf("%s: " fmt "\n", __func__, ## __VA_ARGS__);
+#define BT_ERR(fmt, ...)    console_printf("%s: " fmt "\n", __func__, ## __VA_ARGS__);
 #define BT_GATT_ERR(_att_err)   (-(_att_err))
 
 typedef ble_addr_t bt_addr_le_t;
