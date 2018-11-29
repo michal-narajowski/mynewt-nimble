@@ -27,7 +27,7 @@ const uint8_t irk[16] = {
 };
 
 static atomic_t current_settings;
-static u8_t own_addr_type = BLE_OWN_ADDR_RPA_RANDOM_DEFAULT;
+static u8_t own_addr_type = BLE_OWN_ADDR_PUBLIC;
 
 static int gap_event_cb(struct ble_gap_event *event, void *arg);
 
