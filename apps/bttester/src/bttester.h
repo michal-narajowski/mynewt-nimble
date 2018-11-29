@@ -6,9 +6,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <misc/util.h>
+#include "mesh/glue.h"
 
-#define BTP_MTU 1024
+#define BTP_MTU MYNEWT_VAL(CONSOLE_MAX_INPUT_LEN) /* 1024 */
 #define BTP_DATA_MAX_SIZE (BTP_MTU - sizeof(struct btp_hdr))
 
 #define BTP_INDEX_NONE		0xff
@@ -26,7 +26,6 @@
 
 #define SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
 #define SYS_LOG_DOMAIN "bttester"
-#include <logging/sys_log.h>
 
 struct btp_hdr {
 	u8_t  service;
@@ -831,16 +830,21 @@ u8_t tester_init_gatt(void);
 u8_t tester_unregister_gatt(void);
 void tester_handle_gatt(u8_t opcode, u8_t index, u8_t *data,
 			u16_t len);
+int tester_gatt_notify_rx_ev(u16_t conn_handle, u16_t attr_handle,
+			     u8_t indication, struct os_mbuf *om);
+int tester_gatt_subscribe_ev(u16_t conn_handle, u16_t attr_handle, u8_t reason,
+			     u8_t prev_notify, u8_t cur_notify,
+			     u8_t prev_indicate, u8_t cur_indicate);
 
-#if defined(CONFIG_BT_L2CAP_DYNAMIC_CHANNEL)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
 u8_t tester_init_l2cap(void);
 u8_t tester_unregister_l2cap(void);
 void tester_handle_l2cap(u8_t opcode, u8_t index, u8_t *data,
 			 u16_t len);
-#endif /* CONFIG_BT_L2CAP_DYNAMIC_CHANNEL */
+#endif
 
-#if defined(CONFIG_BT_MESH)
+#if MYNEWT_VAL(BLE_MESH)
 u8_t tester_init_mesh(void);
 u8_t tester_unregister_mesh(void);
 void tester_handle_mesh(u8_t opcode, u8_t index, u8_t *data, u16_t len);
-#endif /* CONFIG_BT_MESH */
+#endif /* MYNEWT_VAL(BLE_MESH) */

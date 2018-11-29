@@ -6,18 +6,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <atomic.h>
-#include <zephyr/types.h>
-#include <string.h>
+#include <host/ble_gap.h>
+#include "host/ble_gap.h"
+#include "console/console.h"
 
-#include <toolchain.h>
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/conn.h>
-
-#include <misc/byteorder.h>
-#include <net/buf.h>
-
+#include "atomic.h"
+#include "glue.h"
 #include "bttester.h"
+#include "../../../../apache-mynewt-nimble/nimble/host/src/ble_hs_pvcy_priv.h"
 
 #define CONTROLLER_INDEX 0
 #define CONTROLLER_NAME "btp_tester"
@@ -25,63 +21,22 @@
 #define BT_LE_AD_DISCOV_MASK (BT_LE_AD_LIMITED | BT_LE_AD_GENERAL)
 #define ADV_BUF_LEN (sizeof(struct gap_device_found_ev) + 2 * 31)
 
-static atomic_t current_settings;
-struct bt_conn_auth_cb cb;
-
-static void le_connected(struct bt_conn *conn, u8_t err)
-{
-	struct gap_device_connected_ev ev;
-	const bt_addr_le_t *addr = bt_conn_get_dst(conn);
-
-	if (err) {
-		return;
-	}
-
-	memcpy(ev.address, addr->a.val, sizeof(ev.address));
-	ev.address_type = addr->type;
-
-	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
-		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
-}
-
-static void le_disconnected(struct bt_conn *conn, u8_t reason)
-{
-	struct gap_device_disconnected_ev ev;
-	const bt_addr_le_t *addr = bt_conn_get_dst(conn);
-
-	memcpy(ev.address, addr->a.val, sizeof(ev.address));
-	ev.address_type = addr->type;
-
-	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_DISCONNECTED,
-		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
-}
-
-static void le_identity_resolved(struct bt_conn *conn, const bt_addr_le_t *rpa,
-				 const bt_addr_le_t *identity)
-{
-	struct gap_identity_resolved_ev ev;
-
-	ev.address_type = rpa->type;
-	memcpy(ev.address, rpa->a.val, sizeof(ev.address));
-
-	ev.identity_address_type = identity->type;
-	memcpy(ev.identity_address, identity->a.val,
-	       sizeof(ev.identity_address));
-
-	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_IDENTITY_RESOLVED,
-		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
-}
-
-static struct bt_conn_cb conn_callbacks = {
-	.connected = le_connected,
-	.disconnected = le_disconnected,
-	.identity_resolved = le_identity_resolved,
+const uint8_t irk[16] = {
+	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
 };
+
+static atomic_t current_settings;
+static u8_t own_addr_type = BLE_OWN_ADDR_RPA_RANDOM_DEFAULT;
+
+static int gap_event_cb(struct ble_gap_event *event, void *arg);
 
 static void supported_commands(u8_t *data, u16_t len)
 {
 	u8_t cmds[3];
 	struct gap_read_supported_commands_rp *rp = (void *) &cmds;
+
+	SYS_LOG_DBG("");
 
 	memset(cmds, 0, sizeof(cmds));
 
@@ -98,6 +53,7 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GAP_DISCONNECT);
 	tester_set_bit(cmds, GAP_SET_IO_CAP);
 	tester_set_bit(cmds, GAP_PAIR);
+	tester_set_bit(cmds, GAP_UNPAIR);
 	tester_set_bit(cmds, GAP_PASSKEY_ENTRY);
 
 	tester_send(BTP_SERVICE_ID_GAP, GAP_READ_SUPPORTED_COMMANDS,
@@ -108,6 +64,8 @@ static void controller_index_list(u8_t *data,  u16_t len)
 {
 	struct gap_read_controller_index_list_rp *rp;
 	u8_t buf[sizeof(*rp) + 1];
+
+	SYS_LOG_DBG("");
 
 	rp = (void *) buf;
 
@@ -121,24 +79,37 @@ static void controller_index_list(u8_t *data,  u16_t len)
 static void controller_info(u8_t *data, u16_t len)
 {
 	struct gap_read_controller_info_rp rp;
-	struct bt_le_oob oob;
-	u32_t supported_settings;
+	u32_t supported_settings = 0;
+	ble_addr_t addr;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = ble_hs_pvcy_set_our_irk(irk);
+	assert(rc == 0);
 
 	memset(&rp, 0, sizeof(rp));
 
-	bt_le_oob_get_local(BT_ID_DEFAULT, &oob);
-	memcpy(rp.address, &oob.addr.a, sizeof(bt_addr_t));
-	/*
-	 * If privacy is used, the device uses random type address, otherwise
-	 * static random or public type address is used.
-	 */
-#if !defined(CONFIG_BT_PRIVACY)
-	if (oob.addr.type == BT_ADDR_LE_RANDOM) {
-		atomic_set_bit(&current_settings, GAP_SETTINGS_STATIC_ADDRESS);
-	}
-#endif /* CONFIG_BT_PRIVACY */
+	rc = ble_hs_id_gen_rnd(0, &addr);
+	assert(rc == 0);
+	rc = ble_hs_id_set_rnd(addr.val);
+	assert(rc == 0);
 
-	supported_settings = BIT(GAP_SETTINGS_POWERED);
+	if (own_addr_type != BLE_OWN_ADDR_PUBLIC) {
+		atomic_set_bit(&current_settings, GAP_SETTINGS_PRIVACY);
+		supported_settings |= BIT(GAP_SETTINGS_PRIVACY);
+		memcpy(rp.address, addr.val, sizeof(rp.address));
+	} else {
+		memcpy(rp.address, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
+		       sizeof(rp.address));
+	}
+
+	if (MYNEWT_VAL(BLE_SM_SC)) {
+		atomic_set_bit(&current_settings, GAP_SETTINGS_SC);
+		supported_settings |= BIT(GAP_SETTINGS_SC);
+	}
+
+	supported_settings |= BIT(GAP_SETTINGS_POWERED);
 	supported_settings |= BIT(GAP_SETTINGS_CONNECTABLE);
 	supported_settings |= BIT(GAP_SETTINGS_BONDABLE);
 	supported_settings |= BIT(GAP_SETTINGS_LE);
@@ -153,15 +124,24 @@ static void controller_info(u8_t *data, u16_t len)
 		    CONTROLLER_INDEX, (u8_t *) &rp, sizeof(rp));
 }
 
+static struct ble_gap_adv_params adv_params = {
+	.conn_mode = BLE_GAP_CONN_MODE_NON,
+	.disc_mode = BLE_GAP_DISC_MODE_NON,
+};
+
 static void set_connectable(u8_t *data, u16_t len)
 {
 	const struct gap_set_connectable_cmd *cmd = (void *) data;
 	struct gap_set_connectable_rp rp;
 
+	SYS_LOG_DBG("");
+
 	if (cmd->connectable) {
 		atomic_set_bit(&current_settings, GAP_SETTINGS_CONNECTABLE);
+		adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
 	} else {
 		atomic_clear_bit(&current_settings, GAP_SETTINGS_CONNECTABLE);
+		adv_params.conn_mode = BLE_GAP_CONN_MODE_NON;
 	}
 
 	rp.current_settings = sys_cpu_to_le32(current_settings);
@@ -171,29 +151,30 @@ static void set_connectable(u8_t *data, u16_t len)
 }
 
 static u8_t ad_flags = BT_LE_AD_NO_BREDR;
-static struct bt_data ad[10] = {
-	BT_DATA(BT_DATA_FLAGS, &ad_flags, sizeof(ad_flags)),
-};
-static struct bt_data sd[10];
 
 static void set_discoverable(u8_t *data, u16_t len)
 {
 	const struct gap_set_discoverable_cmd *cmd = (void *) data;
 	struct gap_set_discoverable_rp rp;
 
+	SYS_LOG_DBG("");
+
 	switch (cmd->discoverable) {
 	case GAP_NON_DISCOVERABLE:
 		ad_flags &= ~(BT_LE_AD_GENERAL | BT_LE_AD_LIMITED);
+		adv_params.disc_mode = BLE_GAP_DISC_MODE_NON;
 		atomic_clear_bit(&current_settings, GAP_SETTINGS_DISCOVERABLE);
 		break;
 	case GAP_GENERAL_DISCOVERABLE:
 		ad_flags &= ~BT_LE_AD_LIMITED;
 		ad_flags |= BT_LE_AD_GENERAL;
+		adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 		atomic_set_bit(&current_settings, GAP_SETTINGS_DISCOVERABLE);
 		break;
 	case GAP_LIMITED_DISCOVERABLE:
 		ad_flags &= ~BT_LE_AD_GENERAL;
 		ad_flags |= BT_LE_AD_LIMITED;
+		adv_params.disc_mode = BLE_GAP_DISC_MODE_LTD;
 		atomic_set_bit(&current_settings, GAP_SETTINGS_DISCOVERABLE);
 		break;
 	default:
@@ -208,13 +189,40 @@ static void set_discoverable(u8_t *data, u16_t len)
 		    (u8_t *) &rp, sizeof(rp));
 }
 
+static struct bt_data ad[10] = {
+	BT_DATA(BT_DATA_FLAGS, &ad_flags, sizeof(ad_flags)),
+};
+static struct bt_data sd[10];
+
+static int
+set_ad(const struct bt_data *ad, size_t ad_len, u8_t *buf, u8_t *buf_len)
+{
+	int i;
+
+	for (i = 0; i < ad_len; i++) {
+		buf[(*buf_len)++] = ad[i].data_len + 1;
+		buf[(*buf_len)++] = ad[i].type;
+
+		memcpy(&buf[*buf_len], ad[i].data,
+		       ad[i].data_len);
+		*buf_len += ad[i].data_len;
+	}
+
+	return 0;
+}
+
 static void start_advertising(const u8_t *data, u16_t len)
 {
 	const struct gap_start_advertising_cmd *cmd = (void *) data;
 	struct gap_start_advertising_rp rp;
+	uint8_t buf[BLE_HS_ADV_MAX_SZ];
+	uint8_t buf_len = 0;
 	u8_t adv_len, sd_len;
-	bool adv_conn;
+	int err;
+
 	int i;
+
+	SYS_LOG_DBG("");
 
 	for (i = 0, adv_len = 1; i < cmd->adv_data_len; adv_len++) {
 		if (adv_len >= ARRAY_SIZE(ad)) {
@@ -240,12 +248,36 @@ static void start_advertising(const u8_t *data, u16_t len)
 		i += sd[sd_len].data_len;
 	}
 
-	adv_conn = atomic_test_bit(&current_settings, GAP_SETTINGS_CONNECTABLE);
+	err = set_ad(ad, adv_len, buf, &buf_len);
+	if (err) {
+		goto fail;
+	}
 
-	/* BTP API don't allow to set empty scan response data. */
-	if (bt_le_adv_start(adv_conn ? BT_LE_ADV_CONN : BT_LE_ADV_NCONN,
-			    ad, adv_len, sd_len ? sd : NULL, sd_len) < 0) {
-		SYS_LOG_ERR("Failed to start advertising");
+	err = ble_gap_adv_set_data(buf, buf_len);
+	if (err != 0) {
+		goto fail;
+	}
+
+	if (sd_len) {
+		buf_len = 0;
+
+		err = set_ad(sd, sd_len, buf, &buf_len);
+		if (err) {
+			BT_ERR("Advertising failed: err %d", err);
+			goto fail;
+		}
+
+		err = ble_gap_adv_rsp_set_data(buf, buf_len);
+		if (err != 0) {
+			BT_ERR("Advertising failed: err %d", err);
+			goto fail;
+		}
+	}
+
+	err = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
+				&adv_params, gap_event_cb, NULL);
+	if (err) {
+		BT_ERR("Advertising failed: err %d", err);
 		goto fail;
 	}
 
@@ -264,7 +296,9 @@ static void stop_advertising(const u8_t *data, u16_t len)
 {
 	struct gap_stop_advertising_rp rp;
 
-	if (bt_le_adv_stop() < 0) {
+	SYS_LOG_DBG("");
+
+	if (ble_gap_adv_stop() != 0) {
 		tester_rsp(BTP_SERVICE_ID_GAP, GAP_STOP_ADVERTISING,
 			   CONTROLLER_INDEX, BTP_STATUS_FAILED);
 		return;
@@ -277,25 +311,25 @@ static void stop_advertising(const u8_t *data, u16_t len)
 		    (u8_t *) &rp, sizeof(rp));
 }
 
-static u8_t get_ad_flags(struct net_buf_simple *ad)
+static u8_t get_ad_flags(u8_t *data, u8_t data_len)
 {
 	u8_t len, i;
 
 	/* Parse advertisement to get flags */
-	for (i = 0; i < ad->len; i += len - 1) {
-		len = ad->data[i++];
+	for (i = 0; i < data_len; i += len - 1) {
+		len = data[i++];
 		if (!len) {
 			break;
 		}
 
 		/* Check if field length is correct */
-		if (len > (ad->len - i) || (ad->len - i) < 1) {
+		if (len > (data_len - i) || (data_len - i) < 1) {
 			break;
 		}
 
-		switch (ad->data[i++]) {
+		switch (data[i++]) {
 		case BT_DATA_FLAGS:
-			return ad->data[i];
+			return data[i];
 		default:
 			break;
 		}
@@ -305,10 +339,10 @@ static u8_t get_ad_flags(struct net_buf_simple *ad)
 }
 
 static u8_t discovery_flags;
-static struct net_buf_simple *adv_buf = NET_BUF_SIMPLE(ADV_BUF_LEN);
+static struct os_mbuf *adv_buf;
 
-static void store_adv(const bt_addr_le_t *addr, s8_t rssi,
-		      struct net_buf_simple *ad)
+static void store_adv(const ble_addr_t *addr, s8_t rssi,
+		      u8_t *data, u8_t len)
 {
 	struct gap_device_found_ev *ev;
 
@@ -317,21 +351,24 @@ static void store_adv(const bt_addr_le_t *addr, s8_t rssi,
 
 	ev = net_buf_simple_add(adv_buf, sizeof(*ev));
 
-	memcpy(ev->address, addr->a.val, sizeof(ev->address));
+	memcpy(ev->address, addr->val, sizeof(ev->address));
 	ev->address_type = addr->type;
 	ev->rssi = rssi;
 	ev->flags = GAP_DEVICE_FOUND_FLAG_AD | GAP_DEVICE_FOUND_FLAG_RSSI;
-	ev->eir_data_len = ad->len;
-	memcpy(net_buf_simple_add(adv_buf, ad->len), ad->data, ad->len);
+	ev->eir_data_len = len;
+	memcpy(net_buf_simple_add(adv_buf, len), data, len);
 }
 
-static void device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t evtype,
-			 struct net_buf_simple *ad)
+static void device_found(ble_addr_t *addr, s8_t rssi, u8_t evtype,
+			 u8_t *data, u8_t len)
 {
+	struct gap_device_found_ev *ev;
+	ble_addr_t a;
+
 	/* if General/Limited Discovery - parse Advertising data to get flags */
 	if (!(discovery_flags & GAP_DISCOVERY_FLAG_LE_OBSERVE) &&
-	    (evtype != BT_LE_ADV_SCAN_RSP)) {
-		u8_t flags = get_ad_flags(ad);
+	    (evtype != BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP)) {
+		u8_t flags = get_ad_flags(data, len);
 
 		/* ignore non-discoverable devices */
 		if (!(flags & BT_LE_AD_DISCOV_MASK)) {
@@ -348,34 +385,31 @@ static void device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t evtype,
 	}
 
 	/* attach Scan Response data */
-	if (evtype == BT_LE_ADV_SCAN_RSP) {
-		struct gap_device_found_ev *ev;
-		bt_addr_le_t a;
-
+	if (evtype == BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP) {
 		/* skip if there is no pending advertisement */
-		if (!adv_buf->len) {
+		if (!adv_buf->om_len) {
 			SYS_LOG_INF("No pending advertisement, skipping");
 			return;
 		}
 
-		ev = (void *) adv_buf->data;
+		ev = (void *) adv_buf->om_data;
 		a.type = ev->address_type;
-		memcpy(a.a.val, ev->address, sizeof(a.a.val));
+		memcpy(a.val, ev->address, sizeof(a.val));
 
 		/*
 		 * in general, the Scan Response comes right after the
 		 * Advertisement, but if not if send stored event and ignore
 		 * this one
 		 */
-		if (bt_addr_le_cmp(addr, &a)) {
+		if (ble_addr_cmp(addr, &a)) {
 			SYS_LOG_INF("Address does not match, skipping");
 			goto done;
 		}
 
-		ev->eir_data_len += ad->len;
+		ev->eir_data_len += len;
 		ev->flags |= GAP_DEVICE_FOUND_FLAG_SD;
 
-		memcpy(net_buf_simple_add(adv_buf, ad->len), ad->data, ad->len);
+		memcpy(net_buf_simple_add(adv_buf, len), data, len);
 
 		goto done;
 	}
@@ -384,28 +418,43 @@ static void device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t evtype,
 	 * if there is another pending advertisement, send it and store the
 	 * current one
 	 */
-	if (adv_buf->len) {
+	if (adv_buf->om_len) {
 		tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_FOUND,
-			    CONTROLLER_INDEX, adv_buf->data, adv_buf->len);
+			    CONTROLLER_INDEX, adv_buf->om_data, adv_buf->om_len);
 	}
 
-	store_adv(addr, rssi, ad);
+	store_adv(addr, rssi, data, len);
 
 	/* if Active Scan and scannable event - wait for Scan Response */
 	if ((discovery_flags & GAP_DISCOVERY_FLAG_LE_ACTIVE_SCAN) &&
-	    (evtype == BT_LE_ADV_IND || evtype == BT_LE_ADV_SCAN_IND)) {
+	    (evtype == BLE_HCI_ADV_RPT_EVTYPE_ADV_IND ||
+	     evtype == BLE_HCI_ADV_RPT_EVTYPE_SCAN_IND)) {
 		SYS_LOG_DBG("Waiting for scan response");
 		return;
 	}
 done:
 	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_FOUND,
-		    CONTROLLER_INDEX, adv_buf->data, adv_buf->len);
+		    CONTROLLER_INDEX, adv_buf->om_data, adv_buf->om_len);
+}
+
+static int
+discovery_cb(struct ble_gap_event *event, void *arg)
+{
+	if (event->type == BLE_GAP_EVENT_DISC) {
+		device_found(&event->disc.addr, event->disc.rssi, event->disc.event_type,
+			     event->disc.data, event->disc.length_data);
+	}
+
+	return 0;
 }
 
 static void start_discovery(const u8_t *data, u16_t len)
 {
 	const struct gap_start_discovery_cmd *cmd = (void *) data;
+	struct ble_gap_disc_params params = {0};
 	u8_t status;
+
+	SYS_LOG_DBG("");
 
 	/* only LE scan is supported */
 	if (cmd->flags & GAP_DISCOVERY_FLAG_BREDR) {
@@ -413,9 +462,11 @@ static void start_discovery(const u8_t *data, u16_t len)
 		goto reply;
 	}
 
-	if (bt_le_scan_start(cmd->flags & GAP_DISCOVERY_FLAG_LE_ACTIVE_SCAN ?
-			     BT_LE_SCAN_ACTIVE : BT_LE_SCAN_PASSIVE,
-			     device_found) < 0) {
+	params.passive = (uint8_t) (cmd->flags & GAP_DISCOVERY_FLAG_LE_ACTIVE_SCAN ? 0 : 1);
+	params.limited = (uint8_t) (cmd->flags & GAP_DISCOVERY_FLAG_LIMITED);
+
+	if (ble_gap_disc(own_addr_type, BLE_HS_FOREVER,
+			 &params, discovery_cb, NULL) != 0) {
 		status = BTP_STATUS_FAILED;
 		goto reply;
 	}
@@ -433,7 +484,9 @@ static void stop_discovery(const u8_t *data, u16_t len)
 {
 	u8_t status = BTP_STATUS_SUCCESS;
 
-	if (bt_le_scan_stop() < 0) {
+	SYS_LOG_DBG("");
+
+	if (ble_gap_disc_cancel() != 0) {
 		status = BTP_STATUS_FAILED;
 	}
 
@@ -441,19 +494,336 @@ static void stop_discovery(const u8_t *data, u16_t len)
 		   status);
 }
 
+static void le_connected(u16_t conn_handle, int status)
+{
+	struct ble_gap_conn_desc desc;
+	struct gap_device_connected_ev ev;
+	ble_addr_t *addr;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	if (status != 0) {
+		return;
+	}
+
+	rc = ble_gap_conn_find(conn_handle, &desc);
+	if (rc) {
+		return;
+	}
+
+	addr = &desc.peer_ota_addr;
+
+	memcpy(ev.address, addr->val, sizeof(ev.address));
+	ev.address_type = addr->type;
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_CONNECTED,
+		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
+}
+
+static void le_disconnected(struct ble_gap_conn_desc *conn, int reason)
+{
+	struct gap_device_disconnected_ev ev;
+	ble_addr_t *addr = &conn->peer_ota_addr;
+
+	SYS_LOG_DBG("");
+
+	memcpy(ev.address, addr->val, sizeof(ev.address));
+	ev.address_type = addr->type;
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_DEVICE_DISCONNECTED,
+		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
+}
+
+static void auth_passkey_display(u16_t conn_handle, unsigned int passkey)
+{
+	struct ble_gap_conn_desc desc;
+	struct gap_passkey_display_ev ev;
+	ble_addr_t *addr;
+	struct ble_sm_io pk;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find(conn_handle, &desc);
+	if (rc) {
+		return;
+	}
+
+	rc = ble_hs_hci_util_rand(&pk.passkey, sizeof(pk.passkey));
+	assert(rc == 0);
+	/* Max value is 999999 */
+	pk.passkey %= 1000000;
+	pk.action = BLE_SM_IOACT_DISP;
+
+	rc = ble_sm_inject_io(conn_handle, &pk);
+	assert(rc == 0);
+
+	addr = &desc.peer_ota_addr;
+
+	memcpy(ev.address, addr->val, sizeof(ev.address));
+	ev.address_type = addr->type;
+	ev.passkey = sys_cpu_to_le32(pk.passkey);
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_PASSKEY_DISPLAY,
+		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
+}
+
+static void auth_passkey_entry(u16_t conn_handle)
+{
+	struct ble_gap_conn_desc desc;
+	struct gap_passkey_entry_req_ev ev;
+	ble_addr_t *addr;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find(conn_handle, &desc);
+	if (rc) {
+		return;
+	}
+
+	addr = &desc.peer_ota_addr;
+
+	memcpy(ev.address, addr->val, sizeof(ev.address));
+	ev.address_type = addr->type;
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_PASSKEY_ENTRY_REQ,
+		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
+}
+
+static void auth_passkey_numcmp(u16_t conn_handle, unsigned int passkey)
+{
+	struct ble_gap_conn_desc desc;
+	struct gap_passkey_confirm_req_ev ev;
+	ble_addr_t *addr;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find(conn_handle, &desc);
+	if (rc) {
+		return;
+	}
+
+	addr = &desc.peer_ota_addr;
+
+	memcpy(ev.address, addr->val, sizeof(ev.address));
+	ev.address_type = addr->type;
+	ev.passkey = sys_cpu_to_le32(passkey);
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_PASSKEY_CONFIRM_REQ,
+		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
+}
+
+static void le_passkey_action(u16_t conn_handle,
+			      struct ble_gap_passkey_params *params)
+{
+	SYS_LOG_DBG("");
+
+	switch (params->action) {
+	case BLE_SM_IOACT_INPUT:
+		auth_passkey_entry(conn_handle);
+		break;
+	case BLE_SM_IOACT_DISP:
+		auth_passkey_display(conn_handle, params->numcmp);
+		break;
+	case BLE_SM_IOACT_NUMCMP:
+		auth_passkey_numcmp(conn_handle, params->numcmp);
+		break;
+	default:
+		break;
+	}
+}
+
+static void le_identity_resolved(u16_t conn_handle)
+{
+	struct ble_gap_conn_desc desc;
+	struct gap_identity_resolved_ev ev;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find(conn_handle, &desc);
+	if (rc) {
+		return;
+	}
+
+	ev.address_type = desc.peer_ota_addr.type;
+	memcpy(ev.address, desc.peer_ota_addr.val, sizeof(ev.address));
+
+	ev.identity_address_type = desc.peer_id_addr.type;
+	memcpy(ev.identity_address, desc.peer_id_addr.val,
+	       sizeof(ev.identity_address));
+
+	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_IDENTITY_RESOLVED,
+		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
+}
+
+static void print_bytes(const uint8_t *bytes, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		console_printf("%s0x%02x", i != 0 ? ":" : "", bytes[i]);
+	}
+}
+
+static void print_mbuf(const struct os_mbuf *om)
+{
+	int colon;
+
+	colon = 0;
+	while (om != NULL) {
+		if (colon) {
+			console_printf(":");
+		} else {
+			colon = 1;
+		}
+		print_bytes(om->om_data, om->om_len);
+		om = SLIST_NEXT(om, om_next);
+	}
+}
+
+static void print_addr(const void *addr)
+{
+	const uint8_t *u8p;
+
+	u8p = addr;
+	console_printf("%02x:%02x:%02x:%02x:%02x:%02x",
+		       u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
+}
+
+static void print_conn_desc(const struct ble_gap_conn_desc *desc)
+{
+	console_printf("handle=%d our_ota_addr_type=%d our_ota_addr=",
+		       desc->conn_handle, desc->our_ota_addr.type);
+	print_addr(desc->our_ota_addr.val);
+	console_printf(" our_id_addr_type=%d our_id_addr=",
+		       desc->our_id_addr.type);
+	print_addr(desc->our_id_addr.val);
+	console_printf(" peer_ota_addr_type=%d peer_ota_addr=",
+		       desc->peer_ota_addr.type);
+	print_addr(desc->peer_ota_addr.val);
+	console_printf(" peer_id_addr_type=%d peer_id_addr=",
+		       desc->peer_id_addr.type);
+	print_addr(desc->peer_id_addr.val);
+	console_printf(" conn_itvl=%d conn_latency=%d supervision_timeout=%d "
+		       "encrypted=%d authenticated=%d bonded=%d\n",
+		       desc->conn_itvl, desc->conn_latency,
+		       desc->supervision_timeout,
+		       desc->sec_state.encrypted,
+		       desc->sec_state.authenticated,
+		       desc->sec_state.bonded);
+}
+
+static int gap_event_cb(struct ble_gap_event *event, void *arg)
+{
+	struct ble_gap_conn_desc desc;
+	int rc;
+
+	switch (event->type) {
+	case BLE_GAP_EVENT_CONNECT:
+		console_printf("connection %s; status=%d ",
+			       event->connect.status == 0 ? "established" : "failed",
+			       event->connect.status);
+		if (event->connect.status == 0) {
+			rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
+			assert(rc == 0);
+			print_conn_desc(&desc);
+		}
+		le_connected(event->connect.conn_handle,
+			     event->connect.status);
+		break;
+	case BLE_GAP_EVENT_DISCONNECT:
+		console_printf("disconnect; reason=%d ", event->disconnect.reason);
+			print_conn_desc(&event->disconnect.conn);
+		le_disconnected(&event->disconnect.conn,
+				event->disconnect.reason);
+		break;
+
+	case BLE_GAP_EVENT_PASSKEY_ACTION:
+		console_printf("passkey action event; action=%d",
+			       event->passkey.params.action);
+			if (event->passkey.params.action == BLE_SM_IOACT_NUMCMP) {
+				console_printf(" numcmp=%lu",
+					       (unsigned long)event->passkey.params.numcmp);
+			}
+			console_printf("\n");
+		le_passkey_action(event->passkey.conn_handle,
+				  &event->passkey.params);
+		break;
+	case BLE_GAP_EVENT_IDENTITY_RESOLVED:
+		console_printf("identity resolved ");
+			rc = ble_gap_conn_find(event->identity_resolved.conn_handle, &desc);
+			assert(rc == 0);
+			print_conn_desc(&desc);
+		le_identity_resolved(event->identity_resolved.conn_handle);
+		break;
+	case BLE_GAP_EVENT_NOTIFY_RX:
+		console_printf("notification rx event; attr_handle=%d indication=%d "
+			       "len=%d data=",
+			       event->notify_rx.attr_handle,
+			       event->notify_rx.indication,
+			       OS_MBUF_PKTLEN(event->notify_rx.om));
+
+			print_mbuf(event->notify_rx.om);
+			console_printf("\n");
+		tester_gatt_notify_rx_ev(event->notify_rx.conn_handle,
+					 event->notify_rx.attr_handle,
+					 event->notify_rx.indication,
+					 event->notify_rx.om);
+		break;
+	case BLE_GAP_EVENT_SUBSCRIBE:
+		console_printf("subscribe event; conn_handle=%d attr_handle=%d "
+			       "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
+			       event->subscribe.conn_handle,
+			       event->subscribe.attr_handle,
+			       event->subscribe.reason,
+			       event->subscribe.prev_notify,
+			       event->subscribe.cur_notify,
+			       event->subscribe.prev_indicate,
+			       event->subscribe.cur_indicate);
+		tester_gatt_subscribe_ev(event->subscribe.conn_handle,
+					 event->subscribe.attr_handle,
+					 event->subscribe.reason,
+					 event->subscribe.prev_notify,
+					 event->subscribe.cur_notify,
+					 event->subscribe.prev_indicate,
+					 event->subscribe.cur_indicate);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static void connect(const u8_t *data, u16_t len)
 {
-	struct bt_conn *conn;
+	struct ble_gap_conn_params conn_params = { 0 };
 	u8_t status;
+	int rc;
 
-	conn = bt_conn_create_le((bt_addr_le_t *) data,
-				 BT_LE_CONN_PARAM_DEFAULT);
-	if (!conn) {
+	SYS_LOG_DBG("");
+
+	conn_params.scan_itvl = 0x0010;
+	conn_params.scan_window = 0x0010;
+	conn_params.itvl_min = BLE_GAP_INITIAL_CONN_ITVL_MIN;
+	conn_params.itvl_max = BLE_GAP_INITIAL_CONN_ITVL_MAX;
+	conn_params.latency = 0;
+	conn_params.supervision_timeout = 0x0100;
+	conn_params.min_ce_len = 0x0010;
+	conn_params.max_ce_len = 0x0300;
+
+	rc = ble_gap_connect(own_addr_type, (ble_addr_t *) data,
+			     0, &conn_params,
+			     gap_event_cb, NULL);
+	if (rc) {
 		status = BTP_STATUS_FAILED;
 		goto rsp;
 	}
 
-	bt_conn_unref(conn);
 	status = BTP_STATUS_SUCCESS;
 
 rsp:
@@ -462,56 +832,27 @@ rsp:
 
 static void disconnect(const u8_t *data, u16_t len)
 {
-	struct bt_conn *conn;
+	struct ble_gap_conn_desc desc;
 	u8_t status;
+	int rc;
 
-	conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, (bt_addr_le_t *)data);
-	if (!conn) {
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find_by_addr((ble_addr_t *)data, &desc);
+	if (rc) {
 		status = BTP_STATUS_FAILED;
 		goto rsp;
 	}
 
-	if (bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN)) {
+	if (ble_gap_terminate(desc.conn_handle, BLE_ERR_REM_USER_CONN_TERM)) {
 		status = BTP_STATUS_FAILED;
 	} else {
 		status = BTP_STATUS_SUCCESS;
 	}
 
-	bt_conn_unref(conn);
-
 rsp:
 	tester_rsp(BTP_SERVICE_ID_GAP, GAP_DISCONNECT, CONTROLLER_INDEX,
 		   status);
-}
-
-static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
-{
-	struct gap_passkey_display_ev ev;
-	const bt_addr_le_t *addr = bt_conn_get_dst(conn);
-
-	memcpy(ev.address, addr->a.val, sizeof(ev.address));
-	ev.address_type = addr->type;
-	ev.passkey = sys_cpu_to_le32(passkey);
-
-	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_PASSKEY_DISPLAY,
-		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
-}
-
-static void auth_passkey_entry(struct bt_conn *conn)
-{
-	struct gap_passkey_entry_req_ev ev;
-	const bt_addr_le_t *addr = bt_conn_get_dst(conn);
-
-	memcpy(ev.address, addr->a.val, sizeof(ev.address));
-	ev.address_type = addr->type;
-
-	tester_send(BTP_SERVICE_ID_GAP, GAP_EV_PASSKEY_ENTRY_REQ,
-		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
-}
-
-static void auth_cancel(struct bt_conn *conn)
-{
-	/* TODO */
 }
 
 static void set_io_cap(const u8_t *data, u16_t len)
@@ -519,34 +860,23 @@ static void set_io_cap(const u8_t *data, u16_t len)
 	const struct gap_set_io_cap_cmd *cmd = (void *) data;
 	u8_t status;
 
-	/* Reset io cap requirements */
-	memset(&cb, 0, sizeof(cb));
-	bt_conn_auth_cb_register(NULL);
+	SYS_LOG_DBG("");
 
 	switch (cmd->io_cap) {
 	case GAP_IO_CAP_DISPLAY_ONLY:
-		cb.cancel = auth_cancel;
-		cb.passkey_display = auth_passkey_display;
+		ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_DISP_ONLY;
 		break;
 	case GAP_IO_CAP_KEYBOARD_DISPLAY:
-		cb.cancel = auth_cancel;
-		cb.passkey_display = auth_passkey_display;
-		cb.passkey_entry = auth_passkey_entry;
+		ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_DISP;
 		break;
 	case GAP_IO_CAP_NO_INPUT_OUTPUT:
-		cb.cancel = auth_cancel;
+		ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_NO_IO;
 		break;
 	case GAP_IO_CAP_KEYBOARD_ONLY:
-		cb.cancel = auth_cancel;
-		cb.passkey_entry = auth_passkey_entry;
+		ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_ONLY;
 		break;
 	case GAP_IO_CAP_DISPLAY_YESNO:
 	default:
-		status = BTP_STATUS_FAILED;
-		goto rsp;
-	}
-
-	if (bt_conn_auth_cb_register(&cb)) {
 		status = BTP_STATUS_FAILED;
 		goto rsp;
 	}
@@ -560,22 +890,23 @@ rsp:
 
 static void pair(const u8_t *data, u16_t len)
 {
-	struct bt_conn *conn;
+	struct ble_gap_conn_desc desc;
 	u8_t status;
+	int rc;
 
-	conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, (bt_addr_le_t *)data);
-	if (!conn) {
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find_by_addr((ble_addr_t *)data, &desc);
+	if (rc) {
 		status = BTP_STATUS_FAILED;
 		goto rsp;
 	}
 
-	if (bt_conn_security(conn, BT_SECURITY_MEDIUM)) {
+	if (ble_sm_pair_initiate(desc.conn_handle)) {
 		status = BTP_STATUS_FAILED;
-		bt_conn_unref(conn);
 		goto rsp;
 	}
 
-	bt_conn_unref(conn);
 	status = BTP_STATUS_SUCCESS;
 
 rsp:
@@ -584,51 +915,40 @@ rsp:
 
 static void unpair(const u8_t *data, u16_t len)
 {
-	struct gap_unpair_cmd *cmd = (void *) data;
-	struct bt_conn *conn;
-	bt_addr_le_t addr;
 	u8_t status;
 	int err;
 
-	addr.type = cmd->address_type;
-	memcpy(addr.a.val, cmd->address, sizeof(addr.a.val));
+	SYS_LOG_DBG("");
 
-	conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, &addr);
-	if (!conn) {
-		goto keys;
-	}
-
-	err = bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
-
-	bt_conn_unref(conn);
-
-	if (err < 0) {
-		status = BTP_STATUS_FAILED;
-		goto rsp;
-	}
-keys:
-	err = bt_unpair(BT_ID_DEFAULT, &addr);
-
-	status = err < 0 ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS;
-rsp:
+	err = ble_gap_unpair((ble_addr_t *) data);
+	status = (uint8_t) (err != 0 ? BTP_STATUS_FAILED : BTP_STATUS_SUCCESS);
 	tester_rsp(BTP_SERVICE_ID_GAP, GAP_UNPAIR, CONTROLLER_INDEX, status);
 }
 
 static void passkey_entry(const u8_t *data, u16_t len)
 {
 	const struct gap_passkey_entry_cmd *cmd = (void *) data;
-	struct bt_conn *conn;
+	struct ble_gap_conn_desc desc;
+	struct ble_sm_io pk;
 	u8_t status;
+	int rc;
 
-	conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, (bt_addr_le_t *)data);
-	if (!conn) {
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find_by_addr((ble_addr_t *)data, &desc);
+	if (rc) {
 		status = BTP_STATUS_FAILED;
 		goto rsp;
 	}
 
-	bt_conn_auth_passkey_entry(conn, sys_le32_to_cpu(cmd->passkey));
+	pk.passkey = sys_le32_to_cpu(cmd->passkey);
 
-	bt_conn_unref(conn);
+	rc = ble_sm_inject_io(desc.conn_handle, &pk);
+	if (rc) {
+		status = BTP_STATUS_FAILED;
+		goto rsp;
+	}
+
 	status = BTP_STATUS_SUCCESS;
 
 rsp:
@@ -720,14 +1040,8 @@ static void tester_init_gap_cb(int err)
 
 	atomic_clear(&current_settings);
 	atomic_set_bit(&current_settings, GAP_SETTINGS_POWERED);
-	atomic_set_bit(&current_settings, GAP_SETTINGS_CONNECTABLE);
 	atomic_set_bit(&current_settings, GAP_SETTINGS_BONDABLE);
 	atomic_set_bit(&current_settings, GAP_SETTINGS_LE);
-#if defined(CONFIG_BT_PRIVACY)
-	atomic_set_bit(&current_settings, GAP_SETTINGS_PRIVACY);
-#endif /* CONFIG_BT_PRIVACY */
-
-	bt_conn_cb_register(&conn_callbacks);
 
 	tester_rsp(BTP_SERVICE_ID_CORE, CORE_REGISTER_SERVICE, BTP_INDEX_NONE,
 		   BTP_STATUS_SUCCESS);
@@ -735,10 +1049,9 @@ static void tester_init_gap_cb(int err)
 
 u8_t tester_init_gap(void)
 {
-	if (bt_enable(tester_init_gap_cb) < 0) {
-		return BTP_STATUS_FAILED;
-	}
+	adv_buf = NET_BUF_SIMPLE(ADV_BUF_LEN);
 
+	tester_init_gap_cb(BTP_STATUS_SUCCESS);
 	return BTP_STATUS_SUCCESS;
 }
 
