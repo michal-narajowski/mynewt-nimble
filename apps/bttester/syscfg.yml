@@ -27,33 +27,39 @@ syscfg.defs:
         description: 'Set communication pipe to RTT'
         value: 1
 
+    BTTESTER_RTT_BUFFER_NAME:
+        description: Bttester rtt pipe buffer name
+        value: '"bttester"'
+
+    BTTESTER_RTT_BUFFER_SIZE_UP:
+        description: Bttester upstream buffer size
+        value: 512
+
+    BTTESTER_RTT_BUFFER_SIZE_DOWN:
+        description: Bttester downstream buffer size
+        value: 512
+
 syscfg.vals:
-    # Enable the shell task.
+    OS_MAIN_STACK_SIZE: 12444
     SHELL_TASK: 1
-
-    LOG_LEVEL: 0
-
-    OS_MAIN_STACK_SIZE: 6144
-
     SHELL_NEWTMGR: 0
-
+    LOG_LEVEL: 0
     MSYS_1_BLOCK_COUNT: 48
-
-    BLE_MESH_ADV_BUF_COUNT: 20
-    BLE_MESH_TX_SEG_MAX: 6
-
     BLE_PUBLIC_DEV_ADDR: "((uint8_t[6]){0x66, 0x55, 0x44, 0x33, 0x22, 0x11})"
 
-    BLE_L2CAP_COC_MAX_NUM: 2
-
     BLE_MONITOR_RTT: 1
+    CONSOLE_RTT: 1
+    CONSOLE_UART: 0
+    RTT_NUM_BUFFERS_UP: 1
+    RTT_NUM_BUFFERS_DOWN: 1
 
+    BLE_L2CAP_COC_MAX_NUM: 2
+    BLE_RPA_TIMEOUT: 60
     BLE_SM_BONDING: 1
     BLE_SM_OUR_KEY_DIST: 7
-    BLE_SM_THEIR_KEY_DIST: 7
     BLE_SM_SC: 1
+    BLE_SM_THEIR_KEY_DIST: 7
     BLE_STORE_CONFIG_PERSIST: 0
-    BLE_RPA_TIMEOUT: 60
 
     BLE_MESH: 1
     BLE_MESH_SHELL: 0
@@ -73,6 +79,9 @@ syscfg.vals:
     BLE_MESH_FRIEND: 1
     BLE_MESH_CFG_CLI: 1
 
+    BLE_MESH_ADV_BUF_COUNT: 20
+    BLE_MESH_TX_SEG_MAX: 6
+
     BLE_MESH_DEBUG: 1
     BLE_MESH_DEBUG_NET: 1
     BLE_MESH_DEBUG_TRANS: 1
@@ -90,6 +99,3 @@ syscfg.vals.BTTESTER_PIPE_UART:
     CONSOLE_UART: 0
     CONSOLE_RTT: 1
 
-syscfg.vals.BTTESTER_PIPE_RTT:
-    RTT_TERMINAL_BUFFER_SIZE_UP: 1024
-    RTT_TERMINAL_BUFFER_SIZE_DOWN: 1024
