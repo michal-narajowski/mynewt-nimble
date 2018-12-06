@@ -290,7 +290,11 @@ void tester_init(void)
 	ev = os_eventq_get(&avail_queue);
 	buf = ev->ev_arg;
 
-	bttester_pipe_init();
+	if (bttester_pipe_init()) {
+		SYS_LOG_ERR("Failed to initialize pipe");
+		return;
+	}
+
 	bttester_pipe_register(buf->data, BTP_MTU, recv_cb);
 
 	tester_send(BTP_SERVICE_ID_CORE, CORE_EV_IUT_READY, BTP_INDEX_NONE,
