@@ -271,8 +271,8 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GATT_START_SERVER);
 #if 0
 	tester_set_bit(cmds, GATT_SET_ENC_KEY_SIZE);
-	tester_set_bit(cmds, GATT_EXCHANGE_MTU);
 #endif
+	tester_set_bit(cmds, GATT_EXCHANGE_MTU);
 	tester_set_bit(cmds, GATT_DISC_PRIM_UUID);
 	tester_set_bit(cmds, GATT_FIND_INCLUDED);
 	tester_set_bit(cmds, GATT_DISC_ALL_CHRC);
