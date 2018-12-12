@@ -95,13 +95,14 @@ static void controller_info(u8_t *data, u16_t len)
 	rc = ble_hs_id_set_rnd(addr.val);
 	assert(rc == 0);
 
-	if (own_addr_type != BLE_OWN_ADDR_PUBLIC) {
+	if (MYNEWT_VAL(BTTESTER_PRIVACY_MODE)) {
+		own_addr_type = BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT;
 		atomic_set_bit(&current_settings, GAP_SETTINGS_PRIVACY);
 		supported_settings |= BIT(GAP_SETTINGS_PRIVACY);
 		memcpy(rp.address, addr.val, sizeof(rp.address));
 	} else {
 		memcpy(rp.address, MYNEWT_VAL(BLE_PUBLIC_DEV_ADDR),
-		       sizeof(rp.address));
+               sizeof(rp.address));
 	}
 
 	if (MYNEWT_VAL(BLE_SM_SC)) {

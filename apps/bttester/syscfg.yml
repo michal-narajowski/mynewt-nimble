@@ -39,6 +39,10 @@ syscfg.defs:
         description: Bttester downstream buffer size
         value: 512
 
+    BTTESTER_PRIVACY_MODE:
+        description: Use Resolvable Private Address
+        value: 0
+
 syscfg.vals:
     OS_MAIN_STACK_SIZE: 12444
     SHELL_TASK: 1
