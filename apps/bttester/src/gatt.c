@@ -62,6 +62,7 @@ struct gatt_value {
     u8_t enc_key_size;
     u8_t flags[1];
     u8_t type;
+    void *ptr;
 };
 
 enum {
@@ -293,9 +294,7 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GATT_ADD_INCLUDED_SERVICE);
 	tester_set_bit(cmds, GATT_SET_VALUE);
 	tester_set_bit(cmds, GATT_START_SERVER);
-#if 0
 	tester_set_bit(cmds, GATT_SET_ENC_KEY_SIZE);
-#endif
 	tester_set_bit(cmds, GATT_EXCHANGE_MTU);
 	tester_set_bit(cmds, GATT_DISC_PRIM_UUID);
 	tester_set_bit(cmds, GATT_FIND_INCLUDED);
@@ -502,6 +501,7 @@ static void add_characteristic(u8_t *data, u16_t len)
 	chr_def->flags = cmd->properties;
 	chr_def->arg = value;
 	value->type = GATT_VALUE_TYPE_CHR;
+	value->ptr = (void *) chr_def;
 
 	for (i = 0; i < 8; ++i) {
 		if (cmd->permissions & BIT(i)) {
@@ -515,8 +515,8 @@ static void add_characteristic(u8_t *data, u16_t len)
 
 	rp.char_id = 0;
 
-	tester_send(BTP_SERVICE_ID_GATT, GATT_ADD_CHARACTERISTIC,
-		    CONTROLLER_INDEX, (u8_t *) &rp, sizeof(rp));
+    tester_send(BTP_SERVICE_ID_GATT, GATT_ADD_CHARACTERISTIC,
+                CONTROLLER_INDEX, (u8_t *) &rp, sizeof(rp));
 	return;
 
 fail:
@@ -572,6 +572,7 @@ static void add_descriptor(u8_t *data, u16_t len)
 	dsc_def->access_cb = gatt_svr_access_cb;
 	dsc_def->arg = value;
 	value->type = GATT_VALUE_TYPE_DSC;
+	value->ptr = (void *) dsc_def;
 
 	if (!ble_uuid_cmp(&uuid->u, &BT_UUID_GATT_CEP.u)) {
 		/* TODO: */
@@ -749,35 +750,11 @@ fail:
 		   CONTROLLER_INDEX, BTP_STATUS_FAILED);
 }
 
-#if 0
-static int set_attr_enc_key_size(const struct bt_gatt_attr *attr,
-				 u8_t key_size)
-{
-	struct gatt_value *value;
-
-	/* Fail if requested attribute is a service */
-	if (!ble_uuid_cmp(attr->uuid, BT_UUID_GATT_PRIMARY) ||
-	    !bt_uuid_cmp(attr->uuid, BT_UUID_GATT_SECONDARY) ||
-	    !bt_uuid_cmp(attr->uuid, BT_UUID_GATT_INCLUDE)) {
-		return -EINVAL;
-	}
-
-	/* Fail if permissions are not set */
-	if (!(attr->perm & (GATT_PERM_ENC_READ_MASK |
-			    GATT_PERM_ENC_WRITE_MASK))) {
-		return -EINVAL;
-	}
-
-	value = attr->user_data;
-	value->enc_key_size = key_size;
-
-	return 0;
-}
-
 static void set_enc_key_size(u8_t *data, u16_t len)
 {
 	const struct gatt_set_enc_key_size_cmd *cmd = (void *) data;
-	u8_t status;
+	struct gatt_value *val;
+	u8_t status = 0;
 
 	/* Fail if requested key size is invalid */
 	if (cmd->key_size < 0x07 || cmd->key_size > 0x0f) {
@@ -785,17 +762,27 @@ static void set_enc_key_size(u8_t *data, u16_t len)
 		goto fail;
 	}
 
-	if (cmd->attr_id) {
-		goto fail;
-	}
+	val = get_last_gatt_value();
+	assert(val != NULL);
+	assert(val->ptr != NULL);
 
-	status = set_attr_enc_key_size(LAST_DB_ATTR, cmd->key_size);
+	switch(val->type) {
+	case GATT_VALUE_TYPE_CHR:
+		((struct ble_gatt_chr_def *) val->ptr)->min_key_size =
+			cmd->key_size;
+		break;
+	case GATT_VALUE_TYPE_DSC:
+		((struct ble_gatt_dsc_def *) val->ptr)->min_key_size =
+			cmd->key_size;
+		break;
+	default:
+		break;
+	}
 
 fail:
 	tester_rsp(BTP_SERVICE_ID_GATT, GATT_SET_ENC_KEY_SIZE, CONTROLLER_INDEX,
 		   status);
 }
-#endif
 
 static int exchange_func(uint16_t conn_handle,
 			 const struct ble_gatt_error *error,
@@ -1900,11 +1887,9 @@ void tester_handle_gatt(u8_t opcode, u8_t index, u8_t *data,
 	case GATT_START_SERVER:
 		start_server(data, len);
 		return;
-#if 0
 	case GATT_SET_ENC_KEY_SIZE:
 		set_enc_key_size(data, len);
 		return;
-#endif
 	case GATT_EXCHANGE_MTU:
 		exchange_mtu(data, len);
 		return;
