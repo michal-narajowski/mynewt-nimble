@@ -378,9 +378,18 @@ static size_t read_value(uint16_t conn_handle, uint16_t attr_handle,
 
 	memset(str, '\0', sizeof(str));
 
+
 	if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+		if (ctxt->chr->flags & BLE_GATT_CHR_F_READ_AUTHOR) {
+			return BLE_ATT_ERR_INSUFFICIENT_AUTHOR;
+		}
+
 		ble_uuid_to_str(ctxt->chr->uuid, str);
 	} else {
+		if (ctxt->dsc->att_flags & BLE_ATT_F_READ_AUTHOR) {
+			return BLE_ATT_ERR_INSUFFICIENT_AUTHOR;
+		}
+
 		ble_uuid_to_str(ctxt->dsc->uuid, str);
 	}
 
@@ -417,6 +426,16 @@ static size_t write_value(uint16_t conn_handle, uint16_t attr_handle,
 	int rc;
 
 	SYS_LOG_DBG("");
+
+	if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+		if (ctxt->chr->flags & BLE_GATT_CHR_F_WRITE_AUTHOR) {
+			return BLE_ATT_ERR_INSUFFICIENT_AUTHOR;
+		}
+	} else {
+		if (ctxt->dsc->att_flags & BLE_ATT_F_WRITE_AUTHOR) {
+			return BLE_ATT_ERR_INSUFFICIENT_AUTHOR;
+		}
+	}
 
 	om_len = OS_MBUF_PKTLEN(ctxt->om);
 	if (om_len > value->len) {
