@@ -72,6 +72,7 @@ enum {
 static struct ble_gatt_svc_def svcs[SERVER_MAX_SVCS];
 static struct ble_gatt_chr_def chrs[SERVER_MAX_CHRS];
 static struct ble_gatt_dsc_def dscs[SERVER_MAX_DSCS];
+static struct ble_gatt_svc_def *inc_svcs[SERVER_MAX_SVCS];
 static ble_uuid_any_t uuids[SERVER_MAX_UUIDS];
 static struct gatt_value gatt_values[SERVER_MAX_UUIDS];
 static u8_t data[MAX_BUFFER_SIZE];
@@ -79,6 +80,7 @@ static u8_t data[MAX_BUFFER_SIZE];
 static u8_t svc_count;
 static u8_t chr_count;
 static u8_t dsc_count;
+static u8_t inc_svc_count;
 static u8_t uuid_count;
 static u8_t gatt_value_count;
 static u32_t data_len;
@@ -136,10 +138,34 @@ void free_last_svc(void)
 	memset(&svcs[svc_count], 0, sizeof(struct ble_gatt_svc_def));
 }
 
+struct ble_gatt_svc_def *find_svc_by_id(u16_t id)
+{
+	if (id <= svc_count) {
+		return &svcs[id-1];
+	} else {
+		return NULL;
+	}
+}
+
 struct ble_gatt_svc_def *get_last_svc(void)
 {
 	if (svc_count > 0) {
 		return &svcs[svc_count-1];
+	} else {
+		return NULL;
+	}
+}
+
+struct ble_gatt_svc_def **alloc_inc_svc_arr(void)
+{
+	assert(inc_svc_count < (SERVER_MAX_SVCS - 1));
+	return &inc_svcs[inc_svc_count++];
+}
+
+struct ble_gatt_svc_def **get_last_inc_svc_arr(void)
+{
+	if (inc_svc_count > 0) {
+		return &inc_svcs[inc_svc_count-1];
 	} else {
 		return NULL;
 	}
@@ -264,9 +290,7 @@ static void supported_commands(u8_t *data, u16_t len)
 	tester_set_bit(cmds, GATT_ADD_SERVICE);
 	tester_set_bit(cmds, GATT_ADD_CHARACTERISTIC);
 	tester_set_bit(cmds, GATT_ADD_DESCRIPTOR);
-#if 0
 	tester_set_bit(cmds, GATT_ADD_INCLUDED_SERVICE);
-#endif
 	tester_set_bit(cmds, GATT_SET_VALUE);
 	tester_set_bit(cmds, GATT_START_SERVER);
 #if 0
@@ -313,9 +337,12 @@ static void add_service(u8_t *data, u16_t len)
 
 	if (svc_count > 0) {
 		/* if there is a service already
-		 * add an empty char to indicate end of list of chars
-		 * for the previous svc */
+		 * add an empty char and empty
+		 * included service array to indicate
+		 * end of list for the previous svc
+		 */
 		alloc_chr();
+		alloc_inc_svc_arr();
 	}
 
 	svc_def = alloc_svc();
@@ -568,65 +595,31 @@ fail:
 		   CONTROLLER_INDEX, BTP_STATUS_FAILED);
 }
 
-#if 0
-static int alloc_included(struct bt_gatt_attr *attr,
-			  u16_t *included_service_id, u16_t svc_handle)
-{
-	struct bt_gatt_attr *attr_incl;
-
-	/*
-	 * user_data_len is set to 0 to NOT allocate memory in server_buf for
-	 * user_data, just to assign to it attr pointer.
-	 */
-	attr_incl = gatt_db_add(&(struct bt_gatt_attr)
-				BT_GATT_INCLUDE_SERVICE(attr), 0);
-
-	if (!attr_incl) {
-		return -EINVAL;
-	}
-
-	attr_incl->user_data = attr;
-
-	*included_service_id = attr_incl->handle;
-	return 0;
-}
-
 static void add_included(u8_t *data, u16_t len)
 {
 	const struct gatt_add_included_service_cmd *cmd = (void *) data;
 	struct gatt_add_included_service_rp rp;
-	struct ble_gatt_svc_def *svc;
+	struct ble_gatt_svc_def *last_svc, *svc;
+	struct ble_gatt_svc_def **inc_svc;
 	u16_t included_service_id = 0;
 
-	if (!svc_count || !cmd->svc_id) {
-		goto fail;
-	}
+	last_svc = get_last_svc();
+	assert(last_svc != NULL);
 
-	svc = &svcs[cmd->svc_id - 1];
+	svc = find_svc_by_id(cmd->svc_id);
 	assert(svc != NULL);
-	assert(svc->uuid != NULL);
-	svc->includes
 
-	/* Fail if attribute stored under requested handle is not a service */
-	if (bt_uuid_cmp(svc->uuid, BT_UUID_GATT_PRIMARY) &&
-	    bt_uuid_cmp(svc->uuid, BT_UUID_GATT_SECONDARY)) {
-		goto fail;
+	inc_svc = alloc_inc_svc_arr();
+	if (last_svc->includes == NULL) {
+		last_svc->includes = (const struct ble_gatt_svc_def **) inc_svc;
 	}
 
-	if (alloc_included(svc, &included_service_id, cmd->svc_id)) {
-		goto fail;
-	}
+	*inc_svc = svc;
 
 	rp.included_service_id = sys_cpu_to_le16(included_service_id);
 	tester_send(BTP_SERVICE_ID_GATT, GATT_ADD_INCLUDED_SERVICE,
 		    CONTROLLER_INDEX, (u8_t *) &rp, sizeof(rp));
-	return;
-
-fail:
-	tester_rsp(BTP_SERVICE_ID_GATT, GATT_ADD_INCLUDED_SERVICE,
-		   CONTROLLER_INDEX, BTP_STATUS_FAILED);
 }
-#endif
 
 #if 0
 static u8_t set_cep_value(struct bt_gatt_attr *attr, const void *value,
@@ -1898,11 +1891,9 @@ void tester_handle_gatt(u8_t opcode, u8_t index, u8_t *data,
 	case GATT_ADD_DESCRIPTOR:
 		add_descriptor(data, len);
 		return;
-#if 0
 	case GATT_ADD_INCLUDED_SERVICE:
 		add_included(data, len);
 		return;
-#endif
 	case GATT_SET_VALUE:
 		set_value(data, len);
 		return;
