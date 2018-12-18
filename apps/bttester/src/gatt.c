@@ -378,7 +378,6 @@ static size_t read_value(uint16_t conn_handle, uint16_t attr_handle,
 
 	memset(str, '\0', sizeof(str));
 
-
 	if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
 		if (ctxt->chr->flags & BLE_GATT_CHR_F_READ_AUTHOR) {
 			return BLE_ATT_ERR_INSUFFICIENT_AUTHOR;
