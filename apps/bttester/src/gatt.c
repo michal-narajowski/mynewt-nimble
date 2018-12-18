@@ -61,6 +61,7 @@ struct gatt_value {
     u8_t *data;
     u8_t enc_key_size;
     u8_t flags[1];
+    u16_t val_handle;
     u8_t type;
     void *ptr;
 };
@@ -233,6 +234,15 @@ struct gatt_value *get_last_gatt_value(void)
 {
 	if (gatt_value_count > 0) {
 		return &gatt_values[gatt_value_count-1];
+	} else {
+		return NULL;
+	}
+}
+
+struct gatt_value *find_gatt_value_by_id(u16_t id)
+{
+	if (id <= gatt_value_count) {
+		return &gatt_values[id-1];
 	} else {
 		return NULL;
 	}
@@ -518,6 +528,7 @@ static void add_characteristic(u8_t *data, u16_t len)
 	chr_def->access_cb = gatt_svr_access_cb;
 	chr_def->flags = cmd->properties;
 	chr_def->arg = value;
+	chr_def->val_handle = &value->val_handle;
 	value->type = GATT_VALUE_TYPE_CHR;
 	value->ptr = (void *) chr_def;
 
@@ -661,6 +672,7 @@ static u8_t set_cep_value(struct bt_gatt_attr *attr, const void *value,
 static void set_value(u8_t *data, u16_t len)
 {
 	const struct gatt_set_value_cmd *cmd = (void *) data;
+	const struct ble_gatt_chr_def *chr;
 	struct gatt_value *gatt_value;
 	u16_t value_len;
 	const u8_t *value;
@@ -668,10 +680,10 @@ static void set_value(u8_t *data, u16_t len)
 	SYS_LOG_DBG("");
 
 	if (cmd->attr_id) {
-		goto fail;
+		gatt_value = find_gatt_value_by_id(cmd->attr_id);
+	} else {
+		gatt_value = get_last_gatt_value();
 	}
-
-	gatt_value = get_last_gatt_value();
 	assert(gatt_value != NULL);
 
 	value_len = htole16(cmd->len);
@@ -702,20 +714,13 @@ static void set_value(u8_t *data, u16_t len)
 
 	memcpy(gatt_value->data, value, value_len);
 
-#if 0
-	if (tester_test_bit(value->flags, GATT_VALUE_CCC_FLAG) && ccc_value) {
-		if (ccc_value == BT_GATT_CCC_NOTIFY) {
-			bt_gatt_notify(NULL, attr, value->data, value->len);
-		} else {
-			indicate_params.attr = attr;
-			indicate_params.data = value->data;
-			indicate_params.len = value->len;
-			indicate_params.func = indicate_cb;
-
-			bt_gatt_indicate(NULL, &indicate_params);
+	if (gatt_value->type == GATT_VALUE_TYPE_CHR) {
+		chr = gatt_value->ptr;
+		if (chr->flags & BLE_GATT_CHR_F_INDICATE ||
+		    chr->flags & BLE_GATT_CHR_F_NOTIFY) {
+			ble_gatts_chr_updated(*chr->val_handle);
 		}
 	}
-#endif
 
 	tester_rsp(BTP_SERVICE_ID_GATT, GATT_SET_VALUE, CONTROLLER_INDEX,
 		   BTP_STATUS_SUCCESS);
