@@ -1497,7 +1497,7 @@ int tester_gatt_notify_rx_ev(u16_t conn_handle, u16_t attr_handle,
 
 	addr = &conn.peer_ota_addr;
 
-	ev->type = (u8_t) (indication ? GATT_CFG_INDICATE : GATT_CFG_NOTIFY);
+	ev->type = (u8_t) (indication ? 0x02 : 0x01);
 	ev->handle = htole16(attr_handle);
 	ev->data_length = htole16(om->om_len);
 	memcpy(ev->data, om->om_data, om->om_len);
@@ -1546,7 +1546,7 @@ static int enable_subscription(u16_t conn_handle, u16_t ccc_handle,
 //		return -EEXIST;
 //	}
 
-	op = (uint8_t) (value == 0x0002 ? GATT_CFG_NOTIFY :
+	op = (uint8_t) (value == 0x0001 ? GATT_CFG_NOTIFY :
 			GATT_CFG_INDICATE);
 
 	if (ble_gattc_write_no_rsp_flat(conn_handle,
@@ -1615,9 +1615,9 @@ static void config_subscription(u8_t *data, u16_t len, u8_t op)
 		u16_t value;
 
 		if (op == GATT_CFG_NOTIFY) {
-			value = 0x0002;
-		} else {
 			value = 0x0001;
+		} else {
+			value = 0x0002;
 		}
 
 		/* on success response will be sent from callback */
