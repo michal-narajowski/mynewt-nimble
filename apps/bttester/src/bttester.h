@@ -872,4 +872,7 @@ u8_t tester_unregister_mesh(void);
 void tester_handle_mesh(u8_t opcode, u8_t index, u8_t *data, u16_t len);
 #endif /* MYNEWT_VAL(BLE_MESH) */
 
+void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
+int gatt_svr_init(void);
+
 #endif /* __BTTESTER_H__ */
