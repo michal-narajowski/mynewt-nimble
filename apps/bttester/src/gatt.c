@@ -766,7 +766,11 @@ static void set_value(u8_t *data, u16_t len)
 	value_len = sys_le16_to_cpu(cmd->len);
 	value = cmd->value;
 
-	os_mbuf_extend(gatt_value->buf, value_len);
+	if (value_len > gatt_value->buf->om_len) {
+		os_mbuf_extend(gatt_value->buf,
+			       (value_len - gatt_value->buf->om_len));
+	}
+
 	memcpy(gatt_value->buf->om_data, value, value_len);
 
 	if (gatt_value->type == GATT_VALUE_TYPE_CHR) {
