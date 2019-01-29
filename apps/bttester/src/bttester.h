@@ -10,6 +10,7 @@
 #define __BTTESTER_H__
 
 #include "syscfg/syscfg.h"
+#include "host/ble_gatt.h"
 
 #if MYNEWT_VAL(BLE_MESH)
 #include "mesh/glue.h"

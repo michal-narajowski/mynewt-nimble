@@ -177,12 +177,12 @@ static void cmd_handler(struct os_event *ev)
 	cmd = ev->ev_arg;
 
 	len = sys_le16_to_cpu(cmd->hdr.len);
-//	if (MYNEWT_VAL(BTTESTER_DEBUG)) {
-//		console_printf("[DBG] received %d bytes: %s\n",
-//			       sizeof(cmd->hdr) + len,
-//			       bt_hex(cmd->data,
-//				      sizeof(cmd->hdr) + len));
-//	}
+	if (MYNEWT_VAL(BTTESTER_DEBUG)) {
+		console_printf("[DBG] received %d bytes: %s\n",
+			       sizeof(cmd->hdr) + len,
+			       bt_hex(cmd->data,
+				      sizeof(cmd->hdr) + len));
+	}
 
 	/* TODO
 	 * verify if service is registered before calling handler
@@ -316,14 +316,14 @@ void tester_send(u8_t service, u8_t opcode, u8_t index, u8_t *data,
 		bttester_pipe_send(data, len);
 	}
 
-//	if (MYNEWT_VAL(BTTESTER_DEBUG)) {
-//		console_printf("[DBG] send %d bytes hdr: %s\n", sizeof(msg),
-//			       bt_hex((char *) &msg, sizeof(msg)));
-//		if (data && len) {
-//			console_printf("[DBG] send %d bytes data: %s\n", len,
-//				       bt_hex((char *) data, len));
-//		}
-//	}
+	if (MYNEWT_VAL(BTTESTER_DEBUG)) {
+		console_printf("[DBG] send %d bytes hdr: %s\n", sizeof(msg),
+			       bt_hex((char *) &msg, sizeof(msg)));
+		if (data && len) {
+			console_printf("[DBG] send %d bytes data: %s\n", len,
+				       bt_hex((char *) data, len));
+		}
+	}
 }
 
 void tester_rsp(u8_t service, u8_t opcode, u8_t index, u8_t status)
