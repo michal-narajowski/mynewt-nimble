@@ -22,7 +22,7 @@ def main():
 
     def suite():
         suite = unittest.TestSuite()
-        suite.addTest(GAPTestCase('test_connection_rpa', android, mynewt1))
+        suite.addTest(GAPTestCase('test_pairing_jw', mynewt1, android))
         # suite.addTests(GAPTestCase.init_testcases(mynewt1, mynewt2))
         return suite
 
