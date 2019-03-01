@@ -204,6 +204,49 @@ class GAPTestCase(BTPTestCase):
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
+    def test_pairing_jw(self):
+        btp.gap_set_io_cap(self.iut, IOCap.display_only)
+        btp.gap_set_conn(self.lt)
+        btp.gap_set_gendiscov(self.lt)
+        btp.gap_adv_ind_on(self.lt,
+                           ad=[(AdType.name_full,
+                                self.lt.stack.gap.name.encode()),
+                               AdData.ad_uuid16])
+
+        btp.gap_start_discov(self.iut)
+        time.sleep(5)
+        btp.gap_stop_discov(self.iut)
+        found = btp.check_discov_results_by_name(self.iut,
+                                                 self.lt.stack.gap.name,
+                                                 self.lt.stack.gap.name_short)
+        self.assertIsNotNone(found)
+
+        btp.gap_conn(self.iut,
+                     found.addr.decode(),
+                     found.addr_type)
+
+        btp.gap_wait_for_connection(self.iut)
+        btp.gap_wait_for_connection(self.lt)
+
+        self.assertTrue(self.iut.stack.gap.is_connected())
+        self.assertTrue(self.lt.stack.gap.is_connected())
+
+        btp.gap_pair(self.iut,
+                     found.addr.decode(),
+                     found.addr_type)
+
+        time.sleep(10)
+
+        btp.gap_disconn(self.iut,
+                        found.addr.decode(),
+                        found.addr_type)
+
+        btp.gap_wait_for_disconnection(self.lt)
+        btp.gap_wait_for_disconnection(self.iut)
+
+        self.assertFalse(self.lt.stack.gap.is_connected())
+        self.assertFalse(self.iut.stack.gap.is_connected())
+
     def test_pairing_numcmp(self):
         btp.gap_set_io_cap(self.iut, IOCap.display_yesno)
         btp.gap_set_io_cap(self.lt, IOCap.display_yesno)
