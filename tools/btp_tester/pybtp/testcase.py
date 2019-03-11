@@ -2,7 +2,7 @@ import time
 import unittest
 
 from pybtp import btp
-from pybtp.types import IOCap, AdType
+from pybtp.types import IOCap, AdType, UUID
 
 
 def preconditions(iutctl):
@@ -314,6 +314,45 @@ class GAPTestCase(BTPTestCase):
         btp.gattc_disc_full(self.iut,
                             self.lt.stack.gap.iut_addr_get_type(),
                             self.lt.stack.gap.iut_addr_get_str())
+
+        self.iut.stack.gatt.print_db()
+
+        self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
+
+        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        self.assertFalse(self.lt.stack.gap.is_connected())
+        self.assertFalse(self.iut.stack.gap.is_connected())
+
+    def test_gattc_discover_primary_svcs(self):
+        connection_procedure(peripheral=self.lt, central=self.iut)
+        self.assertTrue(self.lt.stack.gap.is_connected())
+        self.assertTrue(self.iut.stack.gap.is_connected())
+
+        btp.gattc_disc_prim_svcs(self.iut,
+                                 self.lt.stack.gap.iut_addr_get_type(),
+                                 self.lt.stack.gap.iut_addr_get_str())
+
+        btp.gattc_disc_prim_svcs_rsp(self.iut)
+
+        self.iut.stack.gatt.print_db()
+
+        self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
+
+        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        self.assertFalse(self.lt.stack.gap.is_connected())
+        self.assertFalse(self.iut.stack.gap.is_connected())
+
+    def test_gattc_discover_primary_uuid(self):
+        connection_procedure(peripheral=self.lt, central=self.iut)
+        self.assertTrue(self.lt.stack.gap.is_connected())
+        self.assertTrue(self.iut.stack.gap.is_connected())
+
+        btp.gattc_disc_prim_uuid(self.iut,
+                                 self.lt.stack.gap.iut_addr_get_type(),
+                                 self.lt.stack.gap.iut_addr_get_str(),
+                                 UUID.gap_svc)
+
+        btp.gattc_disc_prim_uuid_rsp(self.iut)
 
         self.iut.stack.gatt.print_db()
 
