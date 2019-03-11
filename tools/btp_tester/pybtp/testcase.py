@@ -306,7 +306,7 @@ class GAPTestCase(BTPTestCase):
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_discovery(self):
-        btp.gatts_start_server(self.iut)
+        btp.gatts_start_server(self.lt)
         connection_procedure(peripheral=self.lt, central=self.iut)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
