@@ -362,6 +362,26 @@ class GAPTestCase(BTPTestCase):
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
+    def test_gattc_discover_all_chrcs(self):
+        connection_procedure(peripheral=self.lt, central=self.iut)
+        self.assertTrue(self.lt.stack.gap.is_connected())
+        self.assertTrue(self.iut.stack.gap.is_connected())
+
+        btp.gattc_disc_all_chrc(self.iut,
+                                self.lt.stack.gap.iut_addr_get_type(),
+                                self.lt.stack.gap.iut_addr_get_str(),
+                                0x0001, 0xffff)
+
+        btp.gattc_disc_all_chrc_rsp(self.iut)
+
+        self.iut.stack.gatt.print_db()
+
+        self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
+
+        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        self.assertFalse(self.lt.stack.gap.is_connected())
+        self.assertFalse(self.iut.stack.gap.is_connected())
+
     def test_gattc_read_write(self):
         value_handle = 33
         btp.gatts_start_server(self.iut)
