@@ -3,7 +3,8 @@ import unittest
 
 from projects.android.iutctl import AndroidCtl
 from projects.mynewt.iutctl import MynewtCtl
-from pybtp.testcase import GAPTestCase
+from pybtp import btp
+from pybtp.testcase import GAPTestCase, AdData, preconditions
 
 
 def main():
@@ -22,12 +23,20 @@ def main():
 
     def suite():
         suite = unittest.TestSuite()
-        suite.addTest(GAPTestCase('test_pairing_jw', mynewt1, android))
+        suite.addTest(GAPTestCase('test_gattc_discover_all_descs',
+                                  android, mynewt1))
         # suite.addTests(GAPTestCase.init_testcases(mynewt1, mynewt2))
         return suite
 
     runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite())
+
+    # mynewt1.start()
+    # mynewt1.wait_iut_ready_event()
+    # preconditions(mynewt1)
+    # btp.gap_set_conn(mynewt1)
+    # btp.gap_set_gendiscov(mynewt1)
+    # btp.gap_adv_ind_on(mynewt1, ad=[AdData.ad_uuid16])
 
 
 if __name__ == "__main__":
