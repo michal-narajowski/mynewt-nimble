@@ -137,6 +137,73 @@ class UUID:
     VND128_3 = 'F000BB5204514000B123456789ABCDEF'
 
 
+def hdl_str(hdl):
+    return '{0:x}'.format(hdl, 'x')
+
+
+def u16_hdl_str(hdl):
+    return '{0:04x}'.format(hdl, 'x')
+
+
+def u16_hdl_uc_str(hdl):
+    return '{0:04x}'.format(hdl, 'X')
+
+
+class PTS_DB:
+    PTS_UUID_FMT = '0000{}8c26476f89a7a108033a69c7'
+    SVC = PTS_UUID_FMT.format('0001')
+    CHR_NO_PERM = PTS_UUID_FMT.format('0002')
+    CHR_READ = PTS_UUID_FMT.format('0003')
+    CHR_RELIABLE_WRITE = PTS_UUID_FMT.format('0004')
+    CHR_WRITE_NO_RSP = PTS_UUID_FMT.format('0005')
+    CHR_READ_WRITE = PTS_UUID_FMT.format('0006')
+    CHR_READ_WRITE_ENC = PTS_UUID_FMT.format('0007')
+    CHR_READ_WRITE_AUTHEN = PTS_UUID_FMT.format('0008')
+    CHR_READ_WRITE_AUTHOR = PTS_UUID_FMT.format('0009')
+    DSC_READ = PTS_UUID_FMT.format('000a')
+    DSC_WRITE = PTS_UUID_FMT.format('000b')
+    DSC_READ_WRITE = PTS_UUID_FMT.format('000c')
+    DSC_READ_WRITE_ENC = PTS_UUID_FMT.format('000d')
+    DSC_READ_WRITE_AUTHEN = PTS_UUID_FMT.format('000e')
+    INC_SVC = PTS_UUID_FMT.format('000f')
+    CHR_READ_WRITE_ALT = PTS_UUID_FMT.format('0010')
+
+    CHR_NO_PERM_ID = 0
+    CHR_READ_ID = 1
+    CHR_RELIABLE_WRITE_ID = 2
+    CHR_WRITE_NO_RSP_ID = 3
+    CHR_READ_WRITE_ID = 4
+    CHR_READ_WRITE_ENC_ID = 5
+    CHR_READ_WRITE_AUTHEN_ID = 6
+    CHR_READ_WRITE_AUTHOR_ID = 7
+    DSC_READ_ID = 8
+    DSC_WRITE_ID = 9
+    DSC_READ_WRITE_ID = 10
+    DSC_READ_WRITE_ENC_ID = 11
+    DSC_READ_WRITE_AUTHEN_ID = 12
+    CHR_READ_WRITE_ALT_ID = 13
+
+    iut_attr_db_off = 26
+
+    SVC_HDL = u16_hdl_str(iut_attr_db_off + 0)
+    CHR_NO_PERM_HDL = u16_hdl_str(iut_attr_db_off + 2)
+    CHR_READ_HDL = u16_hdl_str(iut_attr_db_off + 4)
+    CHR_RELIABLE_WRITE_HDL = u16_hdl_str(iut_attr_db_off + 7)
+    CHR_WRITE_NO_RSP_HDL = u16_hdl_str(iut_attr_db_off + 9)
+    CHR_READ_WRITE_HDL = hdl_str(iut_attr_db_off + 11)
+    CHR_READ_WRITE_ENC_HDL = u16_hdl_str(iut_attr_db_off + 14)
+    CHR_READ_WRITE_AUTHEN_HDL = u16_hdl_str(iut_attr_db_off + 16)
+    CHR_READ_WRITE_AUTHOR_HDL = u16_hdl_str(iut_attr_db_off + 18)
+    DSC_READ_HDL = u16_hdl_str(iut_attr_db_off + 19)
+    DSC_WRITE_HDL = u16_hdl_str(iut_attr_db_off + 20)
+    DSC_READ_WRITE_HDL = u16_hdl_str(iut_attr_db_off + 21)
+    DSC_READ_WRITE_ENC_HDL = u16_hdl_str(iut_attr_db_off + 22)
+    DSC_READ_WRITE_AUTHEN_HDL = u16_hdl_str(iut_attr_db_off + 23)
+    SVC_END_HDL = u16_hdl_str(iut_attr_db_off + 23)
+    INC_SVC_HDL = u16_hdl_str(iut_attr_db_off + 25)
+    CHR_READ_WRITE_ALT_HDL = u16_hdl_str(iut_attr_db_off + 27)
+
+
 class IOCap:
     display_only = 0
     display_yesno = 1
