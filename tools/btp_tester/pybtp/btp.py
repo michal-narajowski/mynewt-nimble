@@ -360,12 +360,16 @@ def __gap_current_settings_update(gap, settings):
             gap.current_settings_clear(gap_settings_btp2txt[bit])
 
 
-def gap_wait_for_connection(iutctl, timeout=5):
-    iutctl.stack.gap.wait_for_connection(timeout)
+def gap_wait_for_connection(iutctl, timeout=10, addr=None, addr_type=None):
+    logging.debug("%s %r %r", gap_wait_for_connection.__name__,
+                  addr, addr_type)
+    iutctl.stack.gap.wait_for_connection(timeout, addr, addr_type)
 
 
-def gap_wait_for_disconnection(iutctl, timeout=5):
-    iutctl.stack.gap.wait_for_disconnection(timeout)
+def gap_wait_for_disconnection(iutctl, timeout=10, addr=None, addr_type=None):
+    logging.debug("%s %r %r", gap_wait_for_disconnection.__name__,
+                  addr, addr_type)
+    iutctl.stack.gap.wait_for_disconnection(timeout, addr, addr_type)
 
 
 def gap_adv_ind_on(iutctl, ad=None, sd=None):
@@ -2384,13 +2388,23 @@ def gap_connected_ev_(gap, data, data_len):
     addr_type, addr = struct.unpack_from(hdr_fmt, data)
     addr = binascii.hexlify(addr[::-1])
 
-    gap.connected.data = (addr, addr_type)
+    logging.debug("connected to %r type %r", addr, addr_type)
+
+    gap.connected(addr, addr_type)
 
 
 def gap_disconnected_ev_(gap, data, data_len):
     logging.debug("%s %r", gap_disconnected_ev_.__name__, data)
 
-    gap.connected.data = None
+    hdr_fmt = '<B6s'
+    hdr_len = struct.calcsize(hdr_fmt)
+
+    addr_type, addr = struct.unpack_from(hdr_fmt, data)
+    addr = binascii.hexlify(addr[::-1])
+
+    logging.debug("disconnected from %r type %r", addr, addr_type)
+
+    gap.disconnected(addr, addr_type)
 
 
 def gap_passkey_disp_ev_(gap, data, data_len):

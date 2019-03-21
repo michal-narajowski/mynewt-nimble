@@ -27,7 +27,9 @@ def connection_procedure(peripheral, central):
                  peripheral.stack.gap.iut_addr_get_type())
 
     btp.gap_wait_for_connection(peripheral)
-    btp.gap_wait_for_connection(central)
+    btp.gap_wait_for_connection(central,
+                                addr=peripheral.stack.gap.iut_addr_get_str(),
+                                addr_type=peripheral.stack.gap.iut_addr_get_type())
 
 
 def disconnection_procedure(peripheral, central):
@@ -36,7 +38,9 @@ def disconnection_procedure(peripheral, central):
                     peripheral.stack.gap.iut_addr_get_type())
 
     btp.gap_wait_for_disconnection(peripheral)
-    btp.gap_wait_for_disconnection(central)
+    btp.gap_wait_for_disconnection(central,
+                                   addr=peripheral.stack.gap.iut_addr_get_str(),
+                                   addr_type=peripheral.stack.gap.iut_addr_get_type())
 
 
 class BTPTestCase(unittest.TestCase):
@@ -424,7 +428,6 @@ class GAPTestCase(BTPTestCase):
 
     def test_gattc_read_write(self):
         value_handle = 33
-        btp.gatts_start_server(self.iut)
         connection_procedure(peripheral=self.lt, central=self.iut)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
@@ -468,7 +471,6 @@ class GAPTestCase(BTPTestCase):
     def test_gattc_notification(self):
         value_id = 4
         cccd_handle = 34
-        btp.gatts_start_server(self.iut)
         connection_procedure(peripheral=self.lt, central=self.iut)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
@@ -496,7 +498,6 @@ class GAPTestCase(BTPTestCase):
     def test_gattc_indication(self):
         value_id = 4
         cccd_handle = 34
-        btp.gatts_start_server(self.iut)
         connection_procedure(peripheral=self.lt, central=self.iut)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
@@ -560,7 +561,6 @@ class GAPTestCaseLT2(BTPTestCaseLT2):
 
         disconnection_procedure(peripheral=self.lt1, central=self.iut)
         self.assertFalse(self.lt1.stack.gap.is_connected())
-        self.assertFalse(self.iut.stack.gap.is_connected())
         disconnection_procedure(peripheral=self.lt2, central=self.iut)
         self.assertFalse(self.lt2.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())

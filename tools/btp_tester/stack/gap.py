@@ -8,14 +8,18 @@ from stack.property import Property, timeout_cb
 LeAdv = namedtuple('LeAdv', 'addr_type addr rssi flags eir')
 
 
+class Connection:
+    def __init__(self, addr, addr_type):
+        self.addr_type = addr
+        self.addr = addr_type
+
+
 class Gap:
     def __init__(self):
         self.name = None
         self.name_short = None
 
-        # If disconnected - None
-        # If connected - remote address tuple (addr, addr_type)
-        self.connected = Property(None)
+        self.connections = Property({})
         self.current_settings = Property({
             "Powered": False,
             "Connectable": False,
@@ -43,8 +47,33 @@ class Gap:
 
         self.passkey = Property(None)
 
-    def wait_for_connection(self, timeout):
-        if self.is_connected():
+    def connected(self, addr, addr_type):
+        try:
+            addr = addr.decode()
+        except AttributeError:
+            pass
+        self.connections.data[addr] = Connection(addr, addr_type)
+
+    def disconnected(self, addr, addr_type):
+        try:
+            addr = addr.decode()
+        except AttributeError:
+            pass
+        self.connections.data.pop(addr)
+
+    def is_connected(self, addr=None, addr_type=None):
+        if not addr:
+            return len(self.connections.data) > 0
+
+        try:
+            addr = addr.decode()
+        except AttributeError:
+            pass
+        conn = self.connections.data.get(addr, None)
+        return conn is not None
+
+    def wait_for_connection(self, timeout, addr=None, addr_type=None):
+        if self.is_connected(addr, addr_type):
             return True
 
         flag = Event()
@@ -54,14 +83,14 @@ class Gap:
         t.start()
 
         while flag.is_set():
-            if self.is_connected():
+            if self.is_connected(addr, addr_type):
                 t.cancel()
                 return True
 
         return False
 
-    def wait_for_disconnection(self, timeout):
-        if not self.is_connected():
+    def wait_for_disconnection(self, timeout, addr=None, addr_type=None):
+        if not self.is_connected(addr, addr_type):
             return True
 
         flag = Event()
@@ -71,14 +100,11 @@ class Gap:
         t.start()
 
         while flag.is_set():
-            if not self.is_connected():
+            if not self.is_connected(addr, addr_type):
                 t.cancel()
                 return True
 
         return False
-
-    def is_connected(self):
-        return False if (self.connected.data is None) else True
 
     def current_settings_set(self, key):
         if key in self.current_settings.data:
