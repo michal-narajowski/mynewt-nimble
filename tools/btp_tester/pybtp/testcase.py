@@ -17,7 +17,7 @@ class AdData:
     ad_uuid16 = (AdType.uuid16_some, 'abcd')
 
 
-def connection_procedure(peripheral, central):
+def connection_procedure(central, peripheral):
     btp.gap_set_conn(peripheral)
     btp.gap_set_gendiscov(peripheral)
     btp.gap_adv_ind_on(peripheral, ad=[AdData.ad_uuid16])
@@ -32,7 +32,7 @@ def connection_procedure(peripheral, central):
                                 addr_type=peripheral.stack.gap.iut_addr_get_type())
 
 
-def disconnection_procedure(peripheral, central):
+def disconnection_procedure(central, peripheral):
     btp.gap_disconn(central,
                     peripheral.stack.gap.iut_addr_get_str(),
                     peripheral.stack.gap.iut_addr_get_type())
@@ -155,20 +155,20 @@ class GAPTestCase(BTPTestCase):
         self.assertIsNotNone(found)
 
     def test_advertising(self):
-        connection_procedure(peripheral=self.iut, central=self.lt)
+        connection_procedure(central=self.lt, peripheral=self.iut)
         self.assertTrue(self.iut.stack.gap.is_connected())
         self.assertTrue(self.lt.stack.gap.is_connected())
 
-        disconnection_procedure(peripheral=self.iut, central=self.lt)
+        disconnection_procedure(central=self.lt, peripheral=self.iut)
         self.assertFalse(self.iut.stack.gap.is_connected())
         self.assertFalse(self.lt.stack.gap.is_connected())
 
     def test_connection(self):
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
@@ -255,7 +255,7 @@ class GAPTestCase(BTPTestCase):
         btp.gap_set_io_cap(self.iut, IOCap.display_yesno)
         btp.gap_set_io_cap(self.lt, IOCap.display_yesno)
 
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -277,7 +277,7 @@ class GAPTestCase(BTPTestCase):
                                 self.iut.stack.gap.iut_addr_get_str(),
                                 self.iut.stack.gap.iut_addr_get_type(), 1)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
@@ -285,7 +285,7 @@ class GAPTestCase(BTPTestCase):
         btp.gap_set_io_cap(self.iut, IOCap.keyboard_only)
         btp.gap_set_io_cap(self.lt, IOCap.display_only)
 
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -305,13 +305,13 @@ class GAPTestCase(BTPTestCase):
                                   self.lt.stack.gap.iut_addr_get_type(),
                                   pk_lt)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_discovery(self):
         btp.gatts_start_server(self.lt)
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -323,12 +323,12 @@ class GAPTestCase(BTPTestCase):
 
         self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_discover_primary_svcs(self):
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -342,12 +342,12 @@ class GAPTestCase(BTPTestCase):
 
         self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_discover_primary_uuid(self):
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -362,12 +362,12 @@ class GAPTestCase(BTPTestCase):
 
         self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_discover_all_chrcs(self):
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -382,12 +382,12 @@ class GAPTestCase(BTPTestCase):
 
         self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_discover_chrc_uuid(self):
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -402,12 +402,12 @@ class GAPTestCase(BTPTestCase):
 
         self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_discover_all_descs(self):
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -422,13 +422,13 @@ class GAPTestCase(BTPTestCase):
 
         self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_read_write(self):
         value_handle = 33
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -464,14 +464,14 @@ class GAPTestCase(BTPTestCase):
         self.assertEqual(verify_values[0], "No error")
         self.assertEqual(verify_values[1], "01".encode())
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_notification(self):
         value_id = 4
         cccd_handle = 34
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -491,14 +491,14 @@ class GAPTestCase(BTPTestCase):
                                   self.lt.stack.gap.iut_addr_get_type(),
                                   0x01)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_indication(self):
         value_id = 4
         cccd_handle = 34
-        connection_procedure(peripheral=self.lt, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
@@ -518,7 +518,7 @@ class GAPTestCase(BTPTestCase):
                                   self.lt.stack.gap.iut_addr_get_type(),
                                   0x02)
 
-        disconnection_procedure(peripheral=self.lt, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
@@ -537,30 +537,30 @@ class GAPTestCaseLT2(BTPTestCaseLT2):
         super(__class__, self).tearDown()
 
     def test_advertising(self):
-        connection_procedure(peripheral=self.iut, central=self.lt1)
+        connection_procedure(central=self.lt1, peripheral=self.iut)
         self.assertTrue(self.iut.stack.gap.is_connected())
         self.assertTrue(self.lt1.stack.gap.is_connected())
-        connection_procedure(peripheral=self.iut, central=self.lt2)
+        connection_procedure(central=self.lt2, peripheral=self.iut)
         self.assertTrue(self.iut.stack.gap.is_connected())
         self.assertTrue(self.lt2.stack.gap.is_connected())
 
-        disconnection_procedure(peripheral=self.iut, central=self.lt1)
+        disconnection_procedure(central=self.lt1, peripheral=self.iut)
         self.assertFalse(self.iut.stack.gap.is_connected())
         self.assertFalse(self.lt1.stack.gap.is_connected())
-        disconnection_procedure(peripheral=self.iut, central=self.lt2)
+        disconnection_procedure(central=self.lt2, peripheral=self.iut)
         self.assertFalse(self.iut.stack.gap.is_connected())
         self.assertFalse(self.lt2.stack.gap.is_connected())
 
     def test_connection(self):
-        connection_procedure(peripheral=self.lt1, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt1)
         self.assertTrue(self.lt1.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
-        connection_procedure(peripheral=self.lt2, central=self.iut)
+        connection_procedure(central=self.iut, peripheral=self.lt2)
         self.assertTrue(self.lt2.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
-        disconnection_procedure(peripheral=self.lt1, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt1)
         self.assertFalse(self.lt1.stack.gap.is_connected())
-        disconnection_procedure(peripheral=self.lt2, central=self.iut)
+        disconnection_procedure(central=self.iut, peripheral=self.lt2)
         self.assertFalse(self.lt2.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
