@@ -180,7 +180,6 @@ static void controller_info(u8_t *data, u16_t len)
 	}
 
 	ble_hs_cfg.sm_mitm = 0;
-	ble_hs_cfg.sm_sc = 0;
 
 	supported_settings |= BIT(GAP_SETTINGS_POWERED);
 	supported_settings |= BIT(GAP_SETTINGS_CONNECTABLE);
