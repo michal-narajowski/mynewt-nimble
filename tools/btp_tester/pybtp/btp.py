@@ -20,8 +20,9 @@ import logging
 import struct
 from uuid import UUID
 
+from common.iutctl import IutCtl
 from pybtp import defs
-from stack.gap import LeAdv
+from stack.gap import LeAdv, BleAddress
 from .types import BTPError, gap_settings_btp2txt, addr2btp_ba, Addr, parse_ad, \
     ad_find_name
 
@@ -237,12 +238,7 @@ def btp_hdr_check(rcv_hdr, exp_svc_id, exp_op=None):
             (rcv_hdr.op, exp_op))
 
 
-def bd_addr_convert(bdaddr):
-    """ Remove colons from address and convert to lower case """
-    return "".join(bdaddr.split(':')).lower()
-
-
-def core_reg_svc_gap(iutctl):
+def core_reg_svc_gap(iutctl: IutCtl):
     logging.debug("%s", core_reg_svc_gap.__name__)
 
     iutctl.btp_worker.send(*CORE['gap_reg'])
@@ -250,7 +246,7 @@ def core_reg_svc_gap(iutctl):
     core_reg_svc_rsp_succ(iutctl)
 
 
-def core_unreg_svc_gap(iutctl):
+def core_unreg_svc_gap(iutctl: IutCtl):
     logging.debug("%s", core_unreg_svc_gap.__name__)
 
     iutctl.btp_worker.send(*CORE['gap_unreg'])
@@ -258,7 +254,7 @@ def core_unreg_svc_gap(iutctl):
     core_unreg_svc_rsp_succ(iutctl)
 
 
-def core_reg_svc_gatt(iutctl):
+def core_reg_svc_gatt(iutctl: IutCtl):
     logging.debug("%s", core_reg_svc_gatt.__name__)
 
     iutctl.btp_worker.send(*CORE['gatt_reg'])
@@ -266,13 +262,13 @@ def core_reg_svc_gatt(iutctl):
     core_reg_svc_rsp_succ(iutctl)
 
 
-def core_unreg_svc_gatt(iutctl):
+def core_unreg_svc_gatt(iutctl: IutCtl):
     logging.debug("%s", core_unreg_svc_gatt.__name__)
 
     iutctl.btp_worker.send_wait_rsp(*CORE['gatt_unreg'])
 
 
-def core_reg_svc_l2cap(iutctl):
+def core_reg_svc_l2cap(iutctl: IutCtl):
     logging.debug("%s", core_reg_svc_l2cap.__name__)
 
     iutctl.btp_worker.send(*CORE['l2cap_reg'])
@@ -280,13 +276,13 @@ def core_reg_svc_l2cap(iutctl):
     core_reg_svc_rsp_succ(iutctl)
 
 
-def core_unreg_svc_l2cap(iutctl):
+def core_unreg_svc_l2cap(iutctl: IutCtl):
     logging.debug("%s", core_unreg_svc_l2cap.__name__)
 
     iutctl.btp_worker.send_wait_rsp(*CORE['l2cap_unreg'])
 
 
-def core_reg_svc_mesh(iutctl):
+def core_reg_svc_mesh(iutctl: IutCtl):
     logging.debug("%s", core_reg_svc_mesh.__name__)
 
     iutctl.btp_worker.send(*CORE['mesh_reg'])
@@ -294,13 +290,13 @@ def core_reg_svc_mesh(iutctl):
     core_reg_svc_rsp_succ(iutctl)
 
 
-def core_unreg_svc_mesh(iutctl):
+def core_unreg_svc_mesh(iutctl: IutCtl):
     logging.debug("%s", core_unreg_svc_mesh.__name__)
 
     iutctl.btp_worker.send_wait_rsp(*CORE['mesh_unreg'])
 
 
-def core_reg_svc_rsp_succ(iutctl):
+def core_reg_svc_rsp_succ(iutctl: IutCtl):
     logging.debug("%s", core_reg_svc_rsp_succ.__name__)
 
     expected_frame = ((defs.BTP_SERVICE_ID_CORE,
@@ -321,7 +317,7 @@ def core_reg_svc_rsp_succ(iutctl):
         logging.debug("response is valid")
 
 
-def core_unreg_svc_rsp_succ(iutctl):
+def core_unreg_svc_rsp_succ(iutctl: IutCtl):
     logging.debug("%s", core_unreg_svc_rsp_succ.__name__)
 
     expected_frame = ((defs.BTP_SERVICE_ID_CORE,
@@ -360,19 +356,19 @@ def __gap_current_settings_update(gap, settings):
             gap.current_settings_clear(gap_settings_btp2txt[bit])
 
 
-def gap_wait_for_connection(iutctl, timeout=10, addr=None, addr_type=None):
-    logging.debug("%s %r %r", gap_wait_for_connection.__name__,
-                  addr, addr_type)
-    iutctl.stack.gap.wait_for_connection(timeout, addr, addr_type)
+def gap_wait_for_connection(iutctl: IutCtl, timeout=10,
+                            addr: BleAddress = None):
+    logging.debug("%s %r", gap_wait_for_connection.__name__, addr)
+    iutctl.stack.gap.wait_for_connection(timeout, addr)
 
 
-def gap_wait_for_disconnection(iutctl, timeout=10, addr=None, addr_type=None):
-    logging.debug("%s %r %r", gap_wait_for_disconnection.__name__,
-                  addr, addr_type)
-    iutctl.stack.gap.wait_for_disconnection(timeout, addr, addr_type)
+def gap_wait_for_disconnection(iutctl: IutCtl, timeout=10,
+                               addr: BleAddress = None):
+    logging.debug("%s %r", gap_wait_for_disconnection.__name__, addr)
+    iutctl.stack.gap.wait_for_disconnection(timeout, addr)
 
 
-def gap_adv_ind_on(iutctl, ad=None, sd=None):
+def gap_adv_ind_on(iutctl: IutCtl, ad=None, sd=None):
     logging.debug("%s %r %r", gap_adv_ind_on.__name__, ad, sd)
 
     if iutctl.stack.gap.current_settings_get(
@@ -414,7 +410,7 @@ def gap_adv_ind_on(iutctl, ad=None, sd=None):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_adv_off(iutctl):
+def gap_adv_off(iutctl: IutCtl):
     logging.debug("%s", gap_adv_off.__name__)
 
     if not iutctl.stack.gap.current_settings_get(
@@ -427,53 +423,30 @@ def gap_adv_off(iutctl):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_conn(iutctl, bd_addr, bd_addr_type):
-    logging.debug("%s %r %r", gap_conn.__name__, bd_addr, bd_addr_type)
+def gap_conn(iutctl: IutCtl, bd_addr: BleAddress):
+    logging.debug("%s %r", gap_conn.__name__, bd_addr)
 
-    data_ba = bytearray()
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
 
     iutctl.btp_worker.send(*GAP['conn'], data=data_ba)
 
     gap_command_rsp_succ(iutctl)
 
 
-def gap_rpa_conn(iutctl, bd_addr, bd_addr_type):
-    logging.debug("%s %r %r", gap_rpa_conn.__name__, bd_addr, bd_addr_type)
-
-    data_ba = bytearray()
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
-
-    iutctl.btp_worker.send(*GAP['conn'], data=data_ba)
-
-    gap_command_rsp_succ(iutctl)
-    return True
-
-
-def gap_disconn(iutctl, bd_addr, bd_addr_type):
-    logging.debug("%s %r %r", gap_disconn.__name__, bd_addr, bd_addr_type)
+def gap_disconn(iutctl: IutCtl, bd_addr: BleAddress):
+    logging.debug("%s %r", gap_disconn.__name__, bd_addr)
 
     if not iutctl.stack.gap.is_connected():
         return
 
-    data_ba = bytearray()
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
 
     iutctl.btp_worker.send(*GAP['disconn'], data=data_ba)
 
     gap_command_rsp_succ(iutctl)
 
 
-def verify_not_connected(iutctl, description):
+def verify_not_connected(iutctl: IutCtl, description):
     logging.debug("%s", verify_not_connected.__name__)
 
     gap_wait_for_connection(iutctl, 5)
@@ -483,7 +456,7 @@ def verify_not_connected(iutctl, description):
     return True
 
 
-def gap_set_io_cap(iutctl, io_cap):
+def gap_set_io_cap(iutctl: IutCtl, io_cap):
     logging.debug("%s %r", gap_set_io_cap.__name__, io_cap)
 
     iutctl.btp_worker.send(*GAP['set_io_cap'], data=chr(io_cap))
@@ -491,14 +464,10 @@ def gap_set_io_cap(iutctl, io_cap):
     gap_command_rsp_succ(iutctl)
 
 
-def gap_pair(iutctl, bd_addr, bd_addr_type):
-    logging.debug("%s %r %r", gap_pair.__name__, bd_addr, bd_addr_type)
+def gap_pair(iutctl: IutCtl, bd_addr: BleAddress):
+    logging.debug("%s %r", gap_pair.__name__, bd_addr)
 
-    data_ba = bytearray()
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
 
     iutctl.btp_worker.send(*GAP['pair'], data=data_ba)
 
@@ -506,14 +475,10 @@ def gap_pair(iutctl, bd_addr, bd_addr_type):
     gap_command_rsp_succ(iutctl)
 
 
-def gap_unpair(iutctl, bd_addr, bd_addr_type):
-    logging.debug("%s %r %r", gap_unpair.__name__, bd_addr, bd_addr_type)
+def gap_unpair(iutctl: IutCtl, bd_addr: BleAddress):
+    logging.debug("%s %r", gap_unpair.__name__, bd_addr)
 
-    data_ba = bytearray()
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
 
     iutctl.btp_worker.send(*GAP['unpair'], data=data_ba)
 
@@ -521,11 +486,11 @@ def gap_unpair(iutctl, bd_addr, bd_addr_type):
     gap_command_rsp_succ(iutctl, defs.GAP_UNPAIR)
 
 
-def var_store_get_passkey(iutctl):
+def var_store_get_passkey(iutctl: IutCtl):
     return str(iutctl.stack.gap.get_passkey())
 
 
-def var_store_get_wrong_passkey(iutctl):
+def var_store_get_wrong_passkey(iutctl: IutCtl):
     passkey = iutctl.stack.gap.get_passkey()
 
     # Passkey is in range 0-999999
@@ -535,15 +500,10 @@ def var_store_get_wrong_passkey(iutctl):
         return str(passkey + 1)
 
 
-def gap_passkey_entry_rsp(iutctl, bd_addr, bd_addr_type, passkey):
-    logging.debug("%s %r %r", gap_passkey_entry_rsp.__name__, bd_addr,
-                  bd_addr_type)
+def gap_passkey_entry_rsp(iutctl: IutCtl, bd_addr: BleAddress, passkey):
+    logging.debug("%s %r", gap_passkey_entry_rsp.__name__, bd_addr)
 
-    data_ba = bytearray()
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
 
     if isinstance(passkey, str):
         passkey = int(passkey, 32)
@@ -556,7 +516,7 @@ def gap_passkey_entry_rsp(iutctl, bd_addr, bd_addr_type, passkey):
     gap_command_rsp_succ(iutctl)
 
 
-def gap_reset(iutctl):
+def gap_reset(iutctl: IutCtl):
     logging.debug("%s", gap_reset.__name__)
 
     iutctl.btp_worker.send(*GAP['reset'])
@@ -564,9 +524,8 @@ def gap_reset(iutctl):
     gap_command_rsp_succ(iutctl)
 
 
-def gap_passkey_entry_req_ev(iutctl, bd_addr, bd_addr_type):
-    logging.debug("%s %r %r", gap_passkey_entry_req_ev.__name__, bd_addr,
-                  bd_addr_type)
+def gap_passkey_entry_req_ev(iutctl: IutCtl, bd_addr: BleAddress):
+    logging.debug("%s %r", gap_passkey_entry_req_ev.__name__, bd_addr)
 
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("received %r %r", tuple_hdr, tuple_data)
@@ -582,19 +541,14 @@ def gap_passkey_entry_req_ev(iutctl, bd_addr, bd_addr_type):
     _addr_type, _addr = struct.unpack(fmt, tuple_data[0])
     _addr = binascii.hexlify(_addr[::-1]).lower().decode()
 
-    if _addr_type != bd_addr_type or _addr != bd_addr:
+    if _addr_type != bd_addr.addr_type or _addr != bd_addr.addr:
         raise BTPError("Received data mismatch")
 
 
-def gap_passkey_confirm(iutctl, bd_addr, bd_addr_type, match):
-    logging.debug("%s %r %r", gap_passkey_confirm.__name__, bd_addr,
-                  bd_addr_type)
+def gap_passkey_confirm(iutctl: IutCtl, bd_addr: BleAddress, match):
+    logging.debug("%s %r", gap_passkey_confirm.__name__, bd_addr)
 
-    data_ba = bytearray()
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
     data_ba.extend([match])
 
     iutctl.btp_worker.send(*GAP['passkey_confirm'], data=data_ba)
@@ -602,7 +556,7 @@ def gap_passkey_confirm(iutctl, bd_addr, bd_addr_type, match):
     gap_command_rsp_succ(iutctl)
 
 
-def gap_set_conn(iutctl):
+def gap_set_conn(iutctl: IutCtl):
     logging.debug("%s", gap_set_conn.__name__)
 
     if iutctl.stack.gap.current_settings_get(
@@ -615,7 +569,7 @@ def gap_set_conn(iutctl):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_set_nonconn(iutctl):
+def gap_set_nonconn(iutctl: IutCtl):
     logging.debug("%s", gap_set_nonconn.__name__)
 
     if not iutctl.stack.gap.current_settings_get(
@@ -628,7 +582,7 @@ def gap_set_nonconn(iutctl):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_set_nondiscov(iutctl):
+def gap_set_nondiscov(iutctl: IutCtl):
     logging.debug("%s", gap_set_nondiscov.__name__)
 
     if not iutctl.stack.gap.current_settings_get(
@@ -641,7 +595,7 @@ def gap_set_nondiscov(iutctl):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_set_gendiscov(iutctl):
+def gap_set_gendiscov(iutctl: IutCtl):
     logging.debug("%s", gap_set_gendiscov.__name__)
 
     iutctl.btp_worker.send(*GAP['set_gendiscov'])
@@ -650,7 +604,7 @@ def gap_set_gendiscov(iutctl):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_set_limdiscov(iutctl):
+def gap_set_limdiscov(iutctl: IutCtl):
     logging.debug("%s", gap_set_limdiscov.__name__)
 
     iutctl.btp_worker.send(*GAP['set_limdiscov'])
@@ -659,7 +613,7 @@ def gap_set_limdiscov(iutctl):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_set_powered_on(iutctl):
+def gap_set_powered_on(iutctl: IutCtl):
     logging.debug("%s", gap_set_powered_on.__name__)
 
     iutctl.btp_worker.send(*GAP['set_powered_on'])
@@ -668,7 +622,7 @@ def gap_set_powered_on(iutctl):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_set_powered_off(iutctl):
+def gap_set_powered_off(iutctl: IutCtl):
     logging.debug("%s", gap_set_powered_off.__name__)
 
     iutctl.btp_worker.send(*GAP['set_powered_off'])
@@ -677,7 +631,7 @@ def gap_set_powered_off(iutctl):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_start_discov(iutctl, transport='le', type='active', mode='general'):
+def gap_start_discov(iutctl: IutCtl, transport='le', type='active', mode='general'):
     """GAP Start Discovery function.
 
     Possible options (key: <values>):
@@ -711,11 +665,9 @@ def gap_start_discov(iutctl, transport='le', type='active', mode='general'):
     gap_command_rsp_succ(iutctl)
 
 
-def check_discov_results(iutctl, addr, addr_type, discovered=True, eir=None):
-    addr = addr.encode()
-    addr_type = addr_type
-
-    logging.debug("%s %r %r %r %r", check_discov_results.__name__, addr_type,
+def check_discov_results(iutctl: IutCtl, addr: BleAddress,
+                         discovered=True, eir=None):
+    logging.debug("%s %r %r %r", check_discov_results.__name__,
                   addr, discovered, eir)
 
     found = False
@@ -724,8 +676,6 @@ def check_discov_results(iutctl, addr, addr_type, discovered=True, eir=None):
 
     for device in devices:
         logging.debug("matching %r", device)
-        if addr_type != device.addr_type:
-            continue
         if addr != device.addr:
             continue
         if eir and eir != device.eir:
@@ -740,7 +690,7 @@ def check_discov_results(iutctl, addr, addr_type, discovered=True, eir=None):
     return False
 
 
-def check_discov_results_by_name(iutctl, name_long, name_short):
+def check_discov_results_by_name(iutctl: IutCtl, name_long, name_short):
     logging.debug("%s %r %r", check_discov_results_by_name.__name__,
                   name_long, name_short)
 
@@ -756,7 +706,7 @@ def check_discov_results_by_name(iutctl, name_long, name_short):
     return None
 
 
-def gap_stop_discov(iutctl):
+def gap_stop_discov(iutctl: IutCtl):
     logging.debug("%s", gap_stop_discov.__name__)
 
     iutctl.btp_worker.send(*GAP['stop_discov'])
@@ -766,7 +716,7 @@ def gap_stop_discov(iutctl):
     iutctl.stack.gap.discoverying.data = False
 
 
-def gap_read_ctrl_info(iutctl):
+def gap_read_ctrl_info(iutctl: IutCtl):
     logging.debug("%s", gap_read_ctrl_info.__name__)
 
     iutctl.btp_worker.send(*GAP['read_ctrl_info'])
@@ -783,7 +733,7 @@ def gap_read_ctrl_info(iutctl):
 
     _addr, _supp_set, _curr_set, _cod, _name, _name_sh = \
         struct.unpack_from(fmt, tuple_data[0])
-    _addr = binascii.hexlify(_addr[::-1]).lower()
+    _addr = binascii.hexlify(_addr[::-1]).lower().decode()
 
     addr_type = Addr.le_random if \
         (_curr_set & (1 << defs.GAP_SETTINGS_PRIVACY)) or \
@@ -795,14 +745,25 @@ def gap_read_ctrl_info(iutctl):
 
     iutctl.stack.gap.name = name
     iutctl.stack.gap.name_short = name_short
-    iutctl.stack.gap.iut_addr_set(_addr, addr_type)
-    logging.debug("IUT address %r", iutctl.stack.gap.iut_addr_get_str())
+    iutctl.stack.gap.iut_addr_set(BleAddress(_addr, addr_type))
+    logging.debug("IUT address %r", iutctl.stack.gap.iut_addr_get())
     logging.debug("IUT name '%s' name short '%s'", name, name_short)
 
     __gap_current_settings_update(iutctl.stack.gap, _curr_set)
 
 
-def gap_identity_resolved_ev(iutctl):
+def gap_command_rsp_succ(iutctl: IutCtl, op=None):
+    logging.debug("%s", gap_command_rsp_succ.__name__)
+
+    tuple_hdr, tuple_data = iutctl.btp_worker.read()
+    logging.debug("received %r %r", tuple_hdr, tuple_data)
+
+    btp_hdr_check(tuple_hdr, defs.BTP_SERVICE_ID_GAP, op)
+
+    return tuple_data
+
+
+def gap_identity_resolved_ev(iutctl: IutCtl):
     logging.debug("%s", gap_identity_resolved_ev.__name__)
 
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
@@ -818,22 +779,105 @@ def gap_identity_resolved_ev(iutctl):
     _addr_t, _addr, _id_addr_t, _id_addr = struct.unpack_from('<B6sB6s',
                                                               tuple_data[0])
     # Convert addresses to lower case
-    _addr = binascii.hexlify(_addr[::-1]).lower()
-    _id_addr = binascii.hexlify(_id_addr[::-1]).lower()
+    _addr = binascii.hexlify(_addr[::-1]).lower().decode()
+    _id_addr = binascii.hexlify(_id_addr[::-1]).lower().decode()
 
 
-def gap_command_rsp_succ(iutctl, op=None):
-    logging.debug("%s", gap_command_rsp_succ.__name__)
+def gap_new_settings_ev_(gap, data, data_len):
+    logging.debug("%s %r", gap_new_settings_ev_.__name__, data)
 
-    tuple_hdr, tuple_data = iutctl.btp_worker.read()
-    logging.debug("received %r %r", tuple_hdr, tuple_data)
+    data_fmt = '<I'
 
-    btp_hdr_check(tuple_hdr, defs.BTP_SERVICE_ID_GAP, op)
+    curr_set, = struct.unpack_from(data_fmt, data)
 
-    return tuple_data
+    __gap_current_settings_update(gap, curr_set)
 
 
-def gatts_add_svc(iutctl, svc_type, uuid):
+def gap_device_found_ev_(gap, data, data_len):
+    logging.debug("%s %r", gap_device_found_ev_.__name__, data)
+
+    fmt = '<B6sBBH'
+    if len(data) < struct.calcsize(fmt):
+        raise BTPError("Invalid data length")
+
+    addr_type, addr, rssi, flags, eir_len = struct.unpack_from(fmt, data)
+    eir = data[struct.calcsize(fmt):]
+
+    if len(eir) != eir_len:
+        raise BTPError("Invalid data length")
+
+    addr = binascii.hexlify(addr[::-1]).lower().decode()
+
+    logging.debug("found %r type %r eir %r", addr, addr_type, eir)
+
+    gap.found_devices.data.append(LeAdv(BleAddress(addr, addr_type), rssi,
+                                        flags, eir))
+
+
+def gap_connected_ev_(gap, data, data_len):
+    logging.debug("%s %r", gap_connected_ev_.__name__, data)
+
+    hdr_fmt = '<B6s'
+    hdr_len = struct.calcsize(hdr_fmt)
+
+    addr_type, addr = struct.unpack_from(hdr_fmt, data)
+    addr = binascii.hexlify(addr[::-1]).decode()
+
+    logging.debug("connected to %r type %r", addr, addr_type)
+
+    gap.connected(BleAddress(addr, addr_type))
+
+
+def gap_disconnected_ev_(gap, data, data_len):
+    logging.debug("%s %r", gap_disconnected_ev_.__name__, data)
+
+    hdr_fmt = '<B6s'
+    hdr_len = struct.calcsize(hdr_fmt)
+
+    addr_type, addr = struct.unpack_from(hdr_fmt, data)
+    addr = binascii.hexlify(addr[::-1]).decode()
+
+    logging.debug("disconnected from %r type %r", addr, addr_type)
+
+    gap.disconnected(BleAddress(addr, addr_type))
+
+
+def gap_passkey_disp_ev_(gap, data, data_len):
+    logging.debug("%s %r", gap_passkey_disp_ev_.__name__, data)
+
+    fmt = '<B6sI'
+
+    addr_type, addr, passkey = struct.unpack(fmt, data)
+    addr = binascii.hexlify(addr[::-1])
+
+    logging.debug("passkey = %r", passkey)
+
+    gap.passkey.data = passkey
+
+
+def gap_passkey_confirm_req_ev_(gap, data, data_len):
+    logging.debug("%s %r", gap_passkey_disp_ev_.__name__, data)
+
+    fmt = '<B6sI'
+
+    addr_type, addr, passkey = struct.unpack(fmt, data)
+    addr = binascii.hexlify(addr[::-1])
+
+    logging.debug("passkey = %r", passkey)
+
+    gap.passkey.data = passkey
+
+
+GAP_EV = {
+    defs.GAP_EV_NEW_SETTINGS: gap_new_settings_ev_,
+    defs.GAP_EV_DEVICE_FOUND: gap_device_found_ev_,
+    defs.GAP_EV_DEVICE_CONNECTED: gap_connected_ev_,
+    defs.GAP_EV_DEVICE_DISCONNECTED: gap_disconnected_ev_,
+    defs.GAP_EV_PASSKEY_DISPLAY: gap_passkey_disp_ev_,
+    defs.GAP_EV_PASSKEY_CONFIRM_REQ: gap_passkey_confirm_req_ev_,
+}
+
+def gatts_add_svc(iutctl: IutCtl, svc_type, uuid):
     logging.debug("%s %r %r", gatts_add_svc.__name__, svc_type, uuid)
 
     data_ba = bytearray()
@@ -848,7 +892,7 @@ def gatts_add_svc(iutctl, svc_type, uuid):
     gatt_command_rsp_succ(iutctl)
 
 
-def gatts_add_inc_svc(iutctl, hdl):
+def gatts_add_inc_svc(iutctl: IutCtl, hdl):
     logging.debug("%s %r", gatts_add_inc_svc.__name__, hdl)
 
     if type(hdl) is str:
@@ -863,7 +907,7 @@ def gatts_add_inc_svc(iutctl, hdl):
     gatt_command_rsp_succ(iutctl)
 
 
-def gatts_add_char(iutctl, hdl, prop, perm, uuid):
+def gatts_add_char(iutctl: IutCtl, hdl, prop, perm, uuid):
     logging.debug("%s %r %r %r %r", gatts_add_char.__name__, hdl, prop, perm,
                   uuid)
 
@@ -885,7 +929,7 @@ def gatts_add_char(iutctl, hdl, prop, perm, uuid):
     gatt_command_rsp_succ(iutctl)
 
 
-def gatts_set_val(iutctl, hdl, val):
+def gatts_set_val(iutctl: IutCtl, hdl, val):
     logging.debug("%s %r %r ", gatts_set_val.__name__, hdl, val)
 
     if type(hdl) is str:
@@ -905,7 +949,7 @@ def gatts_set_val(iutctl, hdl, val):
     gatt_command_rsp_succ(iutctl)
 
 
-def gatts_add_desc(iutctl, hdl, perm, uuid):
+def gatts_add_desc(iutctl: IutCtl, hdl, perm, uuid):
     logging.debug("%s %r %r %r", gatts_add_desc.__name__, hdl, perm, uuid)
 
     if type(hdl) is str:
@@ -925,7 +969,7 @@ def gatts_add_desc(iutctl, hdl, perm, uuid):
     gatt_command_rsp_succ(iutctl)
 
 
-def gatts_start_server(iutctl):
+def gatts_start_server(iutctl: IutCtl):
     logging.debug("%s", gatts_start_server.__name__)
 
     iutctl.btp_worker.send(*GATTS['start_server'])
@@ -933,7 +977,7 @@ def gatts_start_server(iutctl):
     gatt_command_rsp_succ(iutctl)
 
 
-def gatts_set_enc_key_size(iutctl, hdl, enc_key_size):
+def gatts_set_enc_key_size(iutctl: IutCtl, hdl, enc_key_size):
     logging.debug("%s %r %r", gatts_set_enc_key_size.__name__,
                   hdl, enc_key_size)
 
@@ -970,7 +1014,7 @@ def gatts_dec_attr_value_changed_ev_data(frame):
     return handle, data
 
 
-def gatts_attr_value_changed_ev(iutctl):
+def gatts_attr_value_changed_ev(iutctl: IutCtl):
     logging.debug("%s", gatts_attr_value_changed_ev.__name__)
 
     (tuple_hdr, tuple_data) = iutctl.btp_worker.read()
@@ -985,7 +1029,7 @@ def gatts_attr_value_changed_ev(iutctl):
     return handle, data
 
 
-def gatts_verify_write_success(iutctl, description):
+def gatts_verify_write_success(iutctl: IutCtl, description):
     """
     This verifies if PTS initiated write operation succeeded
     """
@@ -1003,7 +1047,7 @@ def gatts_verify_write_success(iutctl, description):
         return False
 
 
-def gatts_verify_write_fail(iutctl, description):
+def gatts_verify_write_fail(iutctl: IutCtl, description):
     return not gatts_verify_write_success(iutctl, description)
 
 
@@ -1051,7 +1095,7 @@ def dec_gatts_get_attrs_rp(data, data_len):
     return attributes
 
 
-def gatts_get_attrs(iutctl, start_handle=0x0001,
+def gatts_get_attrs(iutctl: IutCtl, start_handle=0x0001,
                     end_handle=0xffff, type_uuid=None):
     logging.debug("%s %r %r %r", gatts_get_attrs.__name__, start_handle,
                   end_handle, type_uuid)
@@ -1088,7 +1132,7 @@ def gatts_get_attrs(iutctl, start_handle=0x0001,
     return dec_gatts_get_attrs_rp(tuple_data[0], tuple_hdr.data_len)
 
 
-def gatts_get_attr_val(iutctl, handle):
+def gatts_get_attr_val(iutctl: IutCtl, handle):
     logging.debug("%s %r", gatts_get_attr_val.__name__, handle)
 
     data_ba = bytearray()
@@ -1114,61 +1158,47 @@ def gatts_get_attr_val(iutctl, handle):
     return struct.unpack(hdr + '%ds' % data_len, tuple_data[0])
 
 
-def gattc_exchange_mtu(iutctl, bd_addr_type, bd_addr):
-    logging.debug("%s %r %r", gattc_exchange_mtu.__name__, bd_addr_type,
-                  bd_addr)
+def gattc_exchange_mtu(iutctl: IutCtl, bd_addr: BleAddress):
+    logging.debug("%s %r", gattc_exchange_mtu.__name__, bd_addr)
 
     gap_wait_for_connection(iutctl)
 
-    data_ba = bytearray()
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
 
     iutctl.btp_worker.send(*GATTC['exchange_mtu'], data=data_ba)
 
     gatt_command_rsp_succ(iutctl)
 
 
-def gattc_disc_prim_svcs(iutctl, bd_addr_type, bd_addr):
-    logging.debug("%s %r %r", gattc_disc_prim_svcs.__name__, bd_addr_type,
-                  bd_addr)
+def gattc_disc_prim_svcs(iutctl: IutCtl, bd_addr: BleAddress):
+    logging.debug("%s %r", gattc_disc_prim_svcs.__name__, bd_addr)
 
     gap_wait_for_connection(iutctl)
 
-    data_ba = bytearray()
-
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
 
     iutctl.btp_worker.send(*GATTC['disc_prim_svcs'], data=data_ba)
 
 
-def gattc_disc_prim_uuid(iutctl, bd_addr_type, bd_addr, uuid):
-    logging.debug("%s %r %r %r", gattc_disc_prim_uuid.__name__, bd_addr_type,
-                  bd_addr, uuid)
+def gattc_disc_prim_uuid(iutctl: IutCtl, bd_addr: BleAddress, uuid):
+    logging.debug("%s %r %r", gattc_disc_prim_uuid.__name__, bd_addr, uuid)
 
     gap_wait_for_connection(iutctl)
 
-    data_ba = bytearray()
+    data_ba = bytearray(bd_addr)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     uuid_ba = binascii.unhexlify(uuid.replace('-', ''))[::-1]
 
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
     data_ba.extend([len(uuid_ba)])
     data_ba.extend(uuid_ba)
 
     iutctl.btp_worker.send(*GATTC['disc_prim_uuid'], data=data_ba)
 
 
-def gattc_find_included(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl):
-    logging.debug("%s %r %r %r %r", gattc_find_included.__name__,
-                  bd_addr_type, bd_addr, start_hdl, stop_hdl)
+def gattc_find_included(iutctl: IutCtl, bd_addr: BleAddress,
+                        start_hdl, stop_hdl):
+    logging.debug("%s %r %r %r", gattc_find_included.__name__,
+                  bd_addr, start_hdl, stop_hdl)
 
     gap_wait_for_connection(iutctl)
 
@@ -1178,21 +1208,18 @@ def gattc_find_included(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl):
     if type(start_hdl) is str:
         start_hdl = int(start_hdl, 16)
 
-    data_ba = bytearray()
+    data_ba = bytearray(bd_addr)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     start_hdl_ba = struct.pack('H', start_hdl)
     stop_hdl_ba = struct.pack('H', stop_hdl)
 
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
     data_ba.extend(start_hdl_ba)
     data_ba.extend(stop_hdl_ba)
 
     iutctl.btp_worker.send(*GATTC['find_included'], data=data_ba)
 
 
-def gattc_disc_all_chrc_find_attrs_rsp(iutctl, exp_chars, store_attrs=False):
+def gattc_disc_all_chrc_find_attrs_rsp(iutctl: IutCtl, exp_chars, store_attrs=False):
     """Parse and find requested characteristics from rsp
 
     ATTRIBUTE FORMAT (CHARACTERISTIC) - (handle, val handle, props, uuid)
@@ -1228,10 +1255,10 @@ def gattc_disc_all_chrc_find_attrs_rsp(iutctl, exp_chars, store_attrs=False):
                 gatt.add_chrs(char)
 
 
-def gattc_disc_all_chrc(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl,
+def gattc_disc_all_chrc(iutctl: IutCtl, bd_addr: BleAddress, start_hdl, stop_hdl,
                         svc=None):
-    logging.debug("%s %r %r %r %r %r", gattc_disc_all_chrc.__name__,
-                  bd_addr_type, bd_addr, start_hdl, stop_hdl, svc)
+    logging.debug("%s %r %r %r %r", gattc_disc_all_chrc.__name__,
+                  bd_addr, start_hdl, stop_hdl, svc)
 
     gap_wait_for_connection(iutctl)
 
@@ -1261,24 +1288,21 @@ def gattc_disc_all_chrc(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl,
     if type(stop_hdl) is str:
         stop_hdl = int(stop_hdl, 16)
 
-    data_ba = bytearray()
+    data_ba = bytearray(bd_addr)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     start_hdl_ba = struct.pack('H', start_hdl)
     stop_hdl_ba = struct.pack('H', stop_hdl)
 
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
     data_ba.extend(start_hdl_ba)
     data_ba.extend(stop_hdl_ba)
 
     iutctl.btp_worker.send(*GATTC['disc_all_chrc'], data=data_ba)
 
 
-def gattc_disc_chrc_uuid(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl,
-                         uuid):
-    logging.debug("%s %r %r %r %r %r", gattc_disc_chrc_uuid.__name__,
-                  bd_addr_type, bd_addr, start_hdl, stop_hdl, uuid)
+def gattc_disc_chrc_uuid(iutctl: IutCtl, bd_addr: BleAddress,
+                         start_hdl, stop_hdl, uuid):
+    logging.debug("%s %r %r %r %r", gattc_disc_chrc_uuid.__name__,
+                  bd_addr, start_hdl, stop_hdl, uuid)
 
     gap_wait_for_connection(iutctl)
 
@@ -1288,9 +1312,8 @@ def gattc_disc_chrc_uuid(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl,
     if type(start_hdl) is str:
         start_hdl = int(start_hdl, 16)
 
-    data_ba = bytearray()
+    data_ba = bytearray(bd_addr)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     start_hdl_ba = struct.pack('H', start_hdl)
     stop_hdl_ba = struct.pack('H', stop_hdl)
 
@@ -1300,8 +1323,6 @@ def gattc_disc_chrc_uuid(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl,
         uuid = uuid.replace("0x", "")
     uuid_ba = binascii.unhexlify(uuid)[::-1]
 
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
     data_ba.extend(start_hdl_ba)
     data_ba.extend(stop_hdl_ba)
     data_ba.extend([len(uuid_ba)])
@@ -1310,9 +1331,10 @@ def gattc_disc_chrc_uuid(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl,
     iutctl.btp_worker.send(*GATTC['disc_chrc_uuid'], data=data_ba)
 
 
-def gattc_disc_all_desc(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl):
-    logging.debug("%s %r %r %r %r", gattc_disc_all_desc.__name__,
-                  bd_addr_type, bd_addr, start_hdl, stop_hdl)
+def gattc_disc_all_desc(iutctl: IutCtl, bd_addr: BleAddress,
+                        start_hdl, stop_hdl):
+    logging.debug("%s %r %r %r", gattc_disc_all_desc.__name__,
+                  bd_addr, start_hdl, stop_hdl)
 
     gap_wait_for_connection(iutctl)
 
@@ -1322,26 +1344,23 @@ def gattc_disc_all_desc(iutctl, bd_addr_type, bd_addr, start_hdl, stop_hdl):
     if type(stop_hdl) is str:
         stop_hdl = int(stop_hdl, 16)
 
-    data_ba = bytearray()
+    data_ba = bytearray(bd_addr)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     start_hdl_ba = struct.pack('H', start_hdl)
     stop_hdl_ba = struct.pack('H', stop_hdl)
 
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
     data_ba.extend(start_hdl_ba)
     data_ba.extend(stop_hdl_ba)
 
     iutctl.btp_worker.send(*GATTC['disc_all_desc'], data=data_ba)
 
 
-def gattc_disc_full(iutctl, bd_addr_type, bd_addr):
-    logging.debug("%s %r %r", gattc_disc_full.__name__, bd_addr_type, bd_addr)
+def gattc_disc_full(iutctl: IutCtl, bd_addr: BleAddress):
+    logging.debug("%s %r", gattc_disc_full.__name__, bd_addr)
 
     gap_wait_for_connection(iutctl)
 
-    gattc_disc_prim_svcs(iutctl, bd_addr_type, bd_addr)
+    gattc_disc_prim_svcs(iutctl, bd_addr)
     gattc_disc_prim_svcs_rsp(iutctl)
 
     gatt = iutctl.stack.gatt
@@ -1355,10 +1374,10 @@ def gattc_disc_full(iutctl, bd_addr_type, bd_addr):
 
         start, end, _ = value
 
-        gattc_find_included(iutctl, bd_addr_type, bd_addr, start, end)
+        gattc_find_included(iutctl, bd_addr, start, end)
         gattc_find_included_rsp(iutctl, False)
 
-        gattc_disc_all_chrc(iutctl, bd_addr_type, bd_addr, start, end)
+        gattc_disc_all_chrc(iutctl, bd_addr, start, end)
         gattc_disc_all_chrc_rsp(iutctl, False)
 
     handles = list(sorted(db.keys()))
@@ -1372,12 +1391,12 @@ def gattc_disc_full(iutctl, bd_addr_type, bd_addr):
         if end is None:
             continue
 
-        gattc_disc_all_desc(iutctl, bd_addr_type, bd_addr, start, end)
+        gattc_disc_all_desc(iutctl, bd_addr, start, end)
         gattc_disc_all_desc_rsp(iutctl, False)
 
 
-def gattc_read_char_val(iutctl, bd_addr_type, bd_addr, char):
-    logging.debug("%s %r %r %r", gattc_read_char_val.__name__, bd_addr_type,
+def gattc_read_char_val(iutctl: IutCtl, bd_addr: BleAddress, char):
+    logging.debug("%s %r %r", gattc_read_char_val.__name__,
                   bd_addr, char)
 
     char_nb = char[1]
@@ -1395,38 +1414,35 @@ def gattc_read_char_val(iutctl, bd_addr_type, bd_addr, char):
 
             logging.debug("Got requested char, val handle = %r!", c[1])
 
-            gattc_read(iutctl, bd_addr_type, bd_addr, c[1])
+            gattc_read(iutctl, bd_addr, c[1])
 
             break
 
 
-def gattc_read(iutctl, bd_addr_type, bd_addr, hdl):
-    logging.debug("%s %r %r %r", gattc_read.__name__, bd_addr_type, bd_addr,
-                  hdl)
+def gattc_read(iutctl: IutCtl, bd_addr: BleAddress, hdl):
+    logging.debug("%s %r %r", gattc_read.__name__, bd_addr, hdl)
 
     gap_wait_for_connection(iutctl)
 
-    data_ba = bytearray()
+    data_ba = bytearray(bd_addr)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     if type(hdl) is str:
         hdl = int(hdl, 16)
     hdl_ba = struct.pack('H', hdl)
 
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
     data_ba.extend(hdl_ba)
 
     iutctl.btp_worker.send(*GATTC['read'], data=data_ba)
 
 
-def gattc_read_long(iutctl, bd_addr_type, bd_addr, hdl, off, modif_off=None):
-    logging.debug("%s %r %r %r %r %r", gattc_read_long.__name__, bd_addr_type,
+def gattc_read_long(iutctl: IutCtl, bd_addr: BleAddress,
+                    hdl, off, modif_off=None):
+    logging.debug("%s %r %r %r %r", gattc_read_long.__name__,
                   bd_addr, hdl, off, modif_off)
 
     gap_wait_for_connection(iutctl)
 
-    data_ba = bytearray()
+    data_ba = bytearray(bd_addr)
 
     if type(off) is str:
         off = int(off, 16)
@@ -1435,104 +1451,38 @@ def gattc_read_long(iutctl, bd_addr_type, bd_addr, hdl, off, modif_off=None):
     if type(hdl) is str:
         hdl = int(hdl, 16)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     hdl_ba = struct.pack('H', hdl)
     off_ba = struct.pack('H', off)
 
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
     data_ba.extend(hdl_ba)
     data_ba.extend(off_ba)
 
     iutctl.btp_worker.send(*GATTC['read_long'], data=data_ba)
 
 
-def gattc_read_multiple(iutctl, bd_addr_type, bd_addr, *hdls):
-    logging.debug("%s %r %r %r", gattc_read_multiple.__name__, bd_addr_type,
+def gattc_read_multiple(iutctl: IutCtl, bd_addr: BleAddress, *hdls):
+    logging.debug("%s %r %r", gattc_read_multiple.__name__,
                   bd_addr, hdls)
 
     gap_wait_for_connection(iutctl)
 
-    data_ba = bytearray()
+    data_ba = bytearray(bd_addr)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     hdls_j = ''.join(hdl for hdl in hdls)
     hdls_byte_table = [hdls_j[i:i + 2] for i in range(0, len(hdls_j), 2)]
     hdls_swp = ''.join([c[1] + c[0] for c in zip(hdls_byte_table[::2],
                                                  hdls_byte_table[1::2])])
     hdls_ba = binascii.unhexlify(bytearray(hdls_swp))
 
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
     data_ba.extend([len(hdls)])
     data_ba.extend(hdls_ba)
 
     iutctl.btp_worker.send(*GATTC['read_multiple'], data=data_ba)
 
 
-def gattc_write_without_rsp(iutctl, bd_addr_type, bd_addr, hdl, val,
+def gattc_write_without_rsp(iutctl: IutCtl, bd_addr: BleAddress, hdl, val,
                             val_mtp=None):
-    logging.debug("%s %r %r %r %r %r", gattc_write_without_rsp.__name__,
-                  bd_addr_type, bd_addr, hdl, val, val_mtp)
-
-    gap_wait_for_connection(iutctl)
-
-    if type(hdl) is str:
-        hdl = int(hdl, 16)
-
-    if val_mtp:
-        val *= int(val_mtp)
-
-    data_ba = bytearray()
-
-    bd_addr_ba = addr2btp_ba(bd_addr)
-    hdl_ba = struct.pack('H', hdl)
-    val_ba = binascii.unhexlify(bytearray(val))
-    val_len_ba = struct.pack('H', len(val_ba))
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
-    data_ba.extend(hdl_ba)
-    data_ba.extend(val_len_ba)
-    data_ba.extend(val_ba)
-
-    iutctl.btp_worker.send(*GATTC['write_without_rsp'], data=data_ba)
-
-    gatt_command_rsp_succ(iutctl)
-
-
-def gattc_signed_write(iutctl, bd_addr_type, bd_addr, hdl, val, val_mtp=None):
-    logging.debug("%s %r %r %r %r %r", gattc_signed_write.__name__,
-                  bd_addr_type, bd_addr, hdl, val, val_mtp)
-
-    gap_wait_for_connection(iutctl)
-
-    if type(hdl) is str:
-        hdl = int(hdl, 16)
-
-    if val_mtp:
-        val *= int(val_mtp)
-
-    data_ba = bytearray()
-
-    bd_addr_ba = addr2btp_ba(bd_addr)
-    hdl_ba = struct.pack('H', hdl)
-    val_ba = binascii.unhexlify(bytearray(val))
-    val_len_ba = struct.pack('H', len(val_ba))
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
-    data_ba.extend(hdl_ba)
-    data_ba.extend(val_len_ba)
-    data_ba.extend(val_ba)
-
-    iutctl.btp_worker.send(*GATTC['signed_write'], data=data_ba)
-
-    gatt_command_rsp_succ(iutctl)
-
-
-def gattc_write(iutctl, bd_addr_type, bd_addr, hdl, val, val_mtp=None):
-    logging.debug("%s %r %r %r %r %r", gattc_write.__name__, bd_addr_type,
+    logging.debug("%s %r %r %r %r", gattc_write_without_rsp.__name__,
                   bd_addr, hdl, val, val_mtp)
 
     gap_wait_for_connection(iutctl)
@@ -1545,13 +1495,65 @@ def gattc_write(iutctl, bd_addr_type, bd_addr, hdl, val, val_mtp=None):
 
     data_ba = bytearray()
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
+    hdl_ba = struct.pack('H', hdl)
+    val_ba = binascii.unhexlify(bytearray(val))
+    val_len_ba = struct.pack('H', len(val_ba))
+
+    data_ba.extend(hdl_ba)
+    data_ba.extend(val_len_ba)
+    data_ba.extend(val_ba)
+
+    iutctl.btp_worker.send(*GATTC['write_without_rsp'], data=data_ba)
+
+    gatt_command_rsp_succ(iutctl)
+
+
+def gattc_signed_write(iutctl: IutCtl, bd_addr: BleAddress,
+                       hdl, val, val_mtp=None):
+    logging.debug("%s %r %r %r %r", gattc_signed_write.__name__,
+                  bd_addr, hdl, val, val_mtp)
+
+    gap_wait_for_connection(iutctl)
+
+    if type(hdl) is str:
+        hdl = int(hdl, 16)
+
+    if val_mtp:
+        val *= int(val_mtp)
+
+    data_ba = bytearray(bd_addr)
+
+    hdl_ba = struct.pack('H', hdl)
+    val_ba = binascii.unhexlify(bytearray(val))
+    val_len_ba = struct.pack('H', len(val_ba))
+
+    data_ba.extend(hdl_ba)
+    data_ba.extend(val_len_ba)
+    data_ba.extend(val_ba)
+
+    iutctl.btp_worker.send(*GATTC['signed_write'], data=data_ba)
+
+    gatt_command_rsp_succ(iutctl)
+
+
+def gattc_write(iutctl: IutCtl, bd_addr: BleAddress, hdl, val, val_mtp=None):
+    logging.debug("%s %r %r %r %r", gattc_write.__name__,
+                  bd_addr, hdl, val, val_mtp)
+
+    gap_wait_for_connection(iutctl)
+
+    if type(hdl) is str:
+        hdl = int(hdl, 16)
+
+    if val_mtp:
+        val *= int(val_mtp)
+
+    data_ba = bytearray(bd_addr)
+
     hdl_ba = struct.pack('H', hdl)
     val_ba = binascii.unhexlify(bytearray(val.encode()))
     val_len_ba = struct.pack('H', len(val_ba))
 
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
     data_ba.extend(hdl_ba)
     data_ba.extend(val_len_ba)
     data_ba.extend(val_ba)
@@ -1559,9 +1561,9 @@ def gattc_write(iutctl, bd_addr_type, bd_addr, hdl, val, val_mtp=None):
     iutctl.btp_worker.send(*GATTC['write'], data=data_ba)
 
 
-def gattc_write_long(iutctl, bd_addr_type, bd_addr, hdl, off, val, length=None):
-    logging.debug("%s %r %r %r %r %r", gattc_write_long.__name__,
-                  bd_addr_type, hdl, off, val, length)
+def gattc_write_long(iutctl: IutCtl, bd_addr, hdl, off, val, length=None):
+    logging.debug("%s %r %r %r %r", gattc_write_long.__name__,
+                  hdl, off, val, length)
 
     gap_wait_for_connection(iutctl)
 
@@ -1574,15 +1576,12 @@ def gattc_write_long(iutctl, bd_addr_type, bd_addr, hdl, off, val, length=None):
     if length:
         val *= int(length)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     hdl_ba = struct.pack('H', hdl)
     off_ba = struct.pack('H', off)
     val_ba = binascii.unhexlify(bytearray(val))
     val_len_ba = struct.pack('H', len(val_ba))
 
-    data_ba = bytearray()
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
     data_ba.extend(hdl_ba)
     data_ba.extend(off_ba)
     data_ba.extend(val_len_ba)
@@ -1591,8 +1590,8 @@ def gattc_write_long(iutctl, bd_addr_type, bd_addr, hdl, off, val, length=None):
     iutctl.btp_worker.send(*GATTC['write_long'], data=data_ba)
 
 
-def gattc_cfg_notify(iutctl, bd_addr_type, bd_addr, enable, ccc_hdl):
-    logging.debug("%s %r %r, %r, %r", gattc_cfg_notify.__name__, bd_addr_type,
+def gattc_cfg_notify(iutctl: IutCtl, bd_addr: BleAddress, enable, ccc_hdl):
+    logging.debug("%s %r, %r, %r", gattc_cfg_notify.__name__,
                   bd_addr, enable, ccc_hdl)
 
     gap_wait_for_connection(iutctl)
@@ -1600,12 +1599,9 @@ def gattc_cfg_notify(iutctl, bd_addr_type, bd_addr, enable, ccc_hdl):
     if type(ccc_hdl) is str:
         ccc_hdl = int(ccc_hdl, 16)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     ccc_hdl_ba = struct.pack('H', ccc_hdl)
 
-    data_ba = bytearray()
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
     data_ba.extend([enable])
     data_ba.extend(ccc_hdl_ba)
 
@@ -1619,19 +1615,16 @@ def gattc_cfg_notify(iutctl, bd_addr_type, bd_addr, enable, ccc_hdl):
                   defs.GATT_CFG_NOTIFY)
 
 
-def gattc_cfg_indicate(iutctl, bd_addr_type, bd_addr, enable, ccc_hdl):
-    logging.debug("%s %r %r, %r, %r", gattc_cfg_indicate.__name__,
-                  bd_addr_type, bd_addr, enable, ccc_hdl)
+def gattc_cfg_indicate(iutctl: IutCtl, bd_addr: BleAddress, enable, ccc_hdl):
+    logging.debug("%s %r, %r, %r", gattc_cfg_indicate.__name__,
+                  bd_addr, enable, ccc_hdl)
 
     if type(ccc_hdl) is str:
         ccc_hdl = int(ccc_hdl, 16)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
     ccc_hdl_ba = struct.pack('H', ccc_hdl)
 
-    data_ba = bytearray()
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
     data_ba.extend([enable])
     data_ba.extend(ccc_hdl_ba)
 
@@ -1645,9 +1638,9 @@ def gattc_cfg_indicate(iutctl, bd_addr_type, bd_addr, enable, ccc_hdl):
                   defs.GATT_CFG_INDICATE)
 
 
-def gattc_notification_ev(iutctl, bd_addr, bd_addr_type, ev_type):
-    logging.debug("%s %r %r %r", gattc_notification_ev.__name__, bd_addr,
-                  bd_addr_type, ev_type)
+def gattc_notification_ev(iutctl: IutCtl, bd_addr: BleAddress, ev_type):
+    logging.debug("%s %r %r", gattc_notification_ev.__name__, bd_addr,
+                  ev_type)
 
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("received %r %r", tuple_hdr, tuple_data)
@@ -1655,18 +1648,14 @@ def gattc_notification_ev(iutctl, bd_addr, bd_addr_type, ev_type):
     btp_hdr_check(tuple_hdr, defs.BTP_SERVICE_ID_GATT,
                   defs.GATT_EV_NOTIFICATION)
 
-    data_ba = bytearray()
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba.extend([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
     data_ba.extend([ev_type])
 
     if tuple_data[0][0:len(data_ba)] != data_ba:
         raise BTPError("Error in notification event data")
 
 
-def gatt_command_rsp_succ(iutctl):
+def gatt_command_rsp_succ(iutctl: IutCtl):
     logging.debug("%s", gatt_command_rsp_succ.__name__)
 
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
@@ -1815,7 +1804,7 @@ def gatt_dec_write_rsp(data):
     return ord(data)
 
 
-def gattc_disc_prim_uuid_find_attrs_rsp(iutctl, exp_svcs, store_attrs=False):
+def gattc_disc_prim_uuid_find_attrs_rsp(iutctl: IutCtl, exp_svcs, store_attrs=False):
     """Parse and find requested services from rsp
 
     ATTRIBUTE FORMAT (PRIMARY SERVICE) - (start handle, end handle, uuid)
@@ -1849,7 +1838,7 @@ def gattc_disc_prim_uuid_find_attrs_rsp(iutctl, exp_svcs, store_attrs=False):
                 gatt.add_svcs(svc)
 
 
-def gattc_disc_prim_svcs_rsp(iutctl):
+def gattc_disc_prim_svcs_rsp(iutctl: IutCtl):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_prim_svcs_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -1871,7 +1860,7 @@ def gattc_disc_prim_svcs_rsp(iutctl):
         gatt.add_attribute("service", (start_handle, end_handle, uuid))
 
 
-def gattc_disc_prim_uuid_rsp(iutctl, store_rsp=False):
+def gattc_disc_prim_uuid_rsp(iutctl: IutCtl, store_rsp=False):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_prim_uuid_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -1915,7 +1904,7 @@ def gattc_disc_prim_uuid_rsp(iutctl, store_rsp=False):
             logging.debug("Set verify values to: %r", gatt.verify_values)
 
 
-def gattc_find_included_rsp(iutctl, store_rsp=False):
+def gattc_find_included_rsp(iutctl: IutCtl, store_rsp=False):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_find_included_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -1951,7 +1940,7 @@ def gattc_find_included_rsp(iutctl, store_rsp=False):
             logging.debug("Set verify values to: %r", gatt.verify_values)
 
 
-def gattc_disc_all_chrc_rsp(iutctl, store_rsp=False):
+def gattc_disc_all_chrc_rsp(iutctl: IutCtl, store_rsp=False):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_all_chrc_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -1982,7 +1971,7 @@ def gattc_disc_all_chrc_rsp(iutctl, store_rsp=False):
             logging.debug("Set verify values to: %r", gatt.verify_values)
 
 
-def gattc_disc_chrc_uuid_rsp(iutctl, store_rsp=False):
+def gattc_disc_chrc_uuid_rsp(iutctl: IutCtl, store_rsp=False):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_chrc_uuid_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2019,7 +2008,7 @@ def gattc_disc_chrc_uuid_rsp(iutctl, store_rsp=False):
             logging.debug("Set verify values to: %r", gatt.verify_values)
 
 
-def gattc_disc_all_desc_rsp(iutctl, store_rsp=False):
+def gattc_disc_all_desc_rsp(iutctl: IutCtl, store_rsp=False):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_all_desc_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2063,7 +2052,7 @@ att_rsp_str = {0: "No error",
                }
 
 
-def gattc_read_rsp(iutctl, store_rsp=False, store_val=False, timeout=None):
+def gattc_read_rsp(iutctl: IutCtl, store_rsp=False, store_val=False, timeout=None):
     if timeout:
         tuple_hdr, tuple_data = iutctl.btp_worker.read(timeout)
     else:
@@ -2087,7 +2076,7 @@ def gattc_read_rsp(iutctl, store_rsp=False, store_val=False, timeout=None):
             gatt.add_verify_values((binascii.hexlify(value[0])).upper())
 
 
-def gattc_read_long_rsp(iutctl, store_rsp=False, store_val=False):
+def gattc_read_long_rsp(iutctl: IutCtl, store_rsp=False, store_val=False):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_read_long_rsp.__name__, tuple_hdr,
                   tuple_data)
@@ -2108,7 +2097,7 @@ def gattc_read_long_rsp(iutctl, store_rsp=False, store_val=False):
             gatt.add_verify_values((binascii.hexlify(value[0])).upper())
 
 
-def gattc_read_multiple_rsp(iutctl, store_val=False, store_rsp=False):
+def gattc_read_multiple_rsp(iutctl: IutCtl, store_val=False, store_rsp=False):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_read_multiple_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2130,7 +2119,7 @@ def gattc_read_multiple_rsp(iutctl, store_val=False, store_rsp=False):
             gatt.add_verify_values((binascii.hexlify(values[0])).upper())
 
 
-def gattc_write_rsp(iutctl, store_rsp=False, timeout=None):
+def gattc_write_rsp(iutctl: IutCtl, store_rsp=False, timeout=None):
     if timeout:
         tuple_hdr, tuple_data = iutctl.btp_worker.read(timeout)
     else:
@@ -2149,7 +2138,7 @@ def gattc_write_rsp(iutctl, store_rsp=False, timeout=None):
         gatt.add_verify_values(att_rsp_str[rsp])
 
 
-def gattc_write_long_rsp(iutctl, store_rsp=False):
+def gattc_write_long_rsp(iutctl: IutCtl, store_rsp=False):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_write_long_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2166,7 +2155,7 @@ def gattc_write_long_rsp(iutctl, store_rsp=False):
         gatt.add_verify_values(att_rsp_str[rsp])
 
 
-def l2cap_command_rsp_succ(iutctl, op=None):
+def l2cap_command_rsp_succ(iutctl: IutCtl, op=None):
     logging.debug("%s", l2cap_command_rsp_succ.__name__)
 
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
@@ -2175,8 +2164,8 @@ def l2cap_command_rsp_succ(iutctl, op=None):
     btp_hdr_check(tuple_hdr, defs.BTP_SERVICE_ID_L2CAP, op)
 
 
-def l2cap_conn(iutctl, bd_addr, bd_addr_type, psm):
-    logging.debug("%s %r %r %r", l2cap_conn.__name__, bd_addr, bd_addr_type,
+def l2cap_conn(iutctl: IutCtl, bd_addr: BleAddress, psm):
+    logging.debug("%s %r %r", l2cap_conn.__name__, bd_addr,
                   psm)
 
     gap_wait_for_connection(iutctl)
@@ -2184,10 +2173,7 @@ def l2cap_conn(iutctl, bd_addr, bd_addr_type, psm):
     if type(psm) is str:
         psm = int(psm, 16)
 
-    bd_addr_ba = addr2btp_ba(bd_addr)
-
-    data_ba = bytearray([bd_addr_type])
-    data_ba.extend(bd_addr_ba)
+    data_ba = bytearray(bd_addr)
     data_ba.extend(struct.pack('H', psm))
 
     iutctl.btp_worker.send(*L2CAP['connect'], data=data_ba)
@@ -2207,7 +2193,7 @@ l2cap_result_str = {0: "Connection successful",
                     }
 
 
-def l2cap_conn_rsp(iutctl):
+def l2cap_conn_rsp(iutctl: IutCtl):
     logging.debug("%s", l2cap_conn_rsp.__name__)
 
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
@@ -2222,7 +2208,7 @@ def l2cap_conn_rsp(iutctl):
     logging.debug("new L2CAP channel: id %r", chan_id)
 
 
-def l2cap_disconn(iutctl, chan_id):
+def l2cap_disconn(iutctl: IutCtl, chan_id):
     logging.debug("%s %r", l2cap_disconn.__name__, chan_id)
 
     channels = iutctl.stack.l2cap.channels
@@ -2241,7 +2227,7 @@ def l2cap_disconn(iutctl, chan_id):
     l2cap_command_rsp_succ(iutctl, defs.L2CAP_DISCONNECT)
 
 
-def l2cap_send_data(iutctl, chan_id, val, val_mtp=None):
+def l2cap_send_data(iutctl: IutCtl, chan_id, val, val_mtp=None):
     logging.debug("%s %r %r %r", l2cap_send_data.__name__, chan_id, val,
                   val_mtp)
 
@@ -2260,7 +2246,7 @@ def l2cap_send_data(iutctl, chan_id, val, val_mtp=None):
     l2cap_command_rsp_succ(iutctl, defs.L2CAP_SEND_DATA)
 
 
-def l2cap_listen(iutctl, psm, transport):
+def l2cap_listen(iutctl: IutCtl, psm, transport):
     logging.debug("%s %r %r", l2cap_le_listen.__name__, psm, transport)
 
     if type(psm) is str:
@@ -2278,7 +2264,7 @@ def l2cap_le_listen(iutctl, psm):
     l2cap_listen(iutctl, psm, defs.L2CAP_TRANSPORT_LE)
 
 
-def l2cap_connected_ev(iutctl):
+def l2cap_connected_ev(iutctl: IutCtl):
     logging.debug("%s", l2cap_connected_ev.__name__)
 
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
@@ -2299,7 +2285,7 @@ def l2cap_connected_ev(iutctl):
         channels.append(chan_id)
 
 
-def l2cap_disconnected_ev(iutctl, exp_chan_id, store=False):
+def l2cap_disconnected_ev(iutctl: IutCtl, exp_chan_id, store=False):
     logging.debug("%s %r", l2cap_disconnected_ev.__name__, exp_chan_id)
 
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
@@ -2324,7 +2310,7 @@ def l2cap_disconnected_ev(iutctl, exp_chan_id, store=False):
         iutctl.stack.l2cap.add_verify_values(l2cap_result_str[res])
 
 
-def l2cap_data_rcv_ev(iutctl, chan_id=None, store=False):
+def l2cap_data_rcv_ev(iutctl: IutCtl, chan_id=None, store=False):
     logging.debug("%s %r %r", l2cap_data_rcv_ev.__name__, chan_id, store)
 
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
@@ -2348,102 +2334,7 @@ def l2cap_data_rcv_ev(iutctl, chan_id=None, store=False):
         iutctl.stack.l2cap.add_verify_values(data)
 
 
-def gap_new_settings_ev_(gap, data, data_len):
-    logging.debug("%s %r", gap_new_settings_ev_.__name__, data)
-
-    data_fmt = '<I'
-
-    curr_set, = struct.unpack_from(data_fmt, data)
-
-    __gap_current_settings_update(gap, curr_set)
-
-
-def gap_device_found_ev_(gap, data, data_len):
-    logging.debug("%s %r", gap_device_found_ev_.__name__, data)
-
-    fmt = '<B6sBBH'
-    if len(data) < struct.calcsize(fmt):
-        raise BTPError("Invalid data length")
-
-    addr_type, addr, rssi, flags, eir_len = struct.unpack_from(fmt, data)
-    eir = data[struct.calcsize(fmt):]
-
-    if len(eir) != eir_len:
-        raise BTPError("Invalid data length")
-
-    addr = binascii.hexlify(addr[::-1]).lower()
-
-    logging.debug("found %r type %r eir %r", addr, addr_type, eir)
-
-    gap.found_devices.data.append(LeAdv(addr_type, addr, rssi,
-                                        flags, eir))
-
-
-def gap_connected_ev_(gap, data, data_len):
-    logging.debug("%s %r", gap_connected_ev_.__name__, data)
-
-    hdr_fmt = '<B6s'
-    hdr_len = struct.calcsize(hdr_fmt)
-
-    addr_type, addr = struct.unpack_from(hdr_fmt, data)
-    addr = binascii.hexlify(addr[::-1])
-
-    logging.debug("connected to %r type %r", addr, addr_type)
-
-    gap.connected(addr, addr_type)
-
-
-def gap_disconnected_ev_(gap, data, data_len):
-    logging.debug("%s %r", gap_disconnected_ev_.__name__, data)
-
-    hdr_fmt = '<B6s'
-    hdr_len = struct.calcsize(hdr_fmt)
-
-    addr_type, addr = struct.unpack_from(hdr_fmt, data)
-    addr = binascii.hexlify(addr[::-1])
-
-    logging.debug("disconnected from %r type %r", addr, addr_type)
-
-    gap.disconnected(addr, addr_type)
-
-
-def gap_passkey_disp_ev_(gap, data, data_len):
-    logging.debug("%s %r", gap_passkey_disp_ev_.__name__, data)
-
-    fmt = '<B6sI'
-
-    addr_type, addr, passkey = struct.unpack(fmt, data)
-    addr = binascii.hexlify(addr[::-1])
-
-    logging.debug("passkey = %r", passkey)
-
-    gap.passkey.data = passkey
-
-
-def gap_passkey_confirm_req_ev_(gap, data, data_len):
-    logging.debug("%s %r", gap_passkey_disp_ev_.__name__, data)
-
-    fmt = '<B6sI'
-
-    addr_type, addr, passkey = struct.unpack(fmt, data)
-    addr = binascii.hexlify(addr[::-1])
-
-    logging.debug("passkey = %r", passkey)
-
-    gap.passkey.data = passkey
-
-
-GAP_EV = {
-    defs.GAP_EV_NEW_SETTINGS: gap_new_settings_ev_,
-    defs.GAP_EV_DEVICE_FOUND: gap_device_found_ev_,
-    defs.GAP_EV_DEVICE_CONNECTED: gap_connected_ev_,
-    defs.GAP_EV_DEVICE_DISCONNECTED: gap_disconnected_ev_,
-    defs.GAP_EV_PASSKEY_DISPLAY: gap_passkey_disp_ev_,
-    defs.GAP_EV_PASSKEY_CONFIRM_REQ: gap_passkey_confirm_req_ev_,
-}
-
-
-def mesh_config_prov(iutctl):
+def mesh_config_prov(iutctl: IutCtl):
     logging.debug("%s", mesh_config_prov.__name__)
 
     stack = iutctl.stack
@@ -2461,7 +2352,7 @@ def mesh_config_prov(iutctl):
     iutctl.btp_worker.send_wait_rsp(*MESH['config_prov'], data=data)
 
 
-def mesh_prov_node(iutctl):
+def mesh_prov_node(iutctl: IutCtl):
     logging.debug("%s", mesh_config_prov.__name__)
 
     stack = iutctl.stack
@@ -2477,7 +2368,7 @@ def mesh_prov_node(iutctl):
     iutctl.btp_worker.send_wait_rsp(*MESH['prov_node'], data=data)
 
 
-def mesh_init(iutctl):
+def mesh_init(iutctl: IutCtl):
     logging.debug("%s", mesh_init.__name__)
 
     iutctl.btp_worker.send_wait_rsp(*MESH['init'])
@@ -2489,7 +2380,7 @@ def mesh_init(iutctl):
         mesh_iv_update_test_mode(iutctl, True)
 
 
-def mesh_reset(iutctl):
+def mesh_reset(iutctl: IutCtl):
     logging.debug("%s", mesh_reset.__name__)
 
     iutctl.btp_worker.send_wait_rsp(*MESH['reset'])
@@ -2500,7 +2391,7 @@ def mesh_reset(iutctl):
     stack.mesh.is_initialized = False
 
 
-def mesh_input_number(iutctl, number):
+def mesh_input_number(iutctl: IutCtl, number):
     logging.debug("%s %r", mesh_input_number.__name__, number)
 
     if type(number) is str:
@@ -2511,7 +2402,7 @@ def mesh_input_number(iutctl, number):
     iutctl.btp_worker.send_wait_rsp(*MESH['input_num'], data=data)
 
 
-def mesh_input_string(iutctl, string):
+def mesh_input_string(iutctl: IutCtl, string):
     logging.debug("%s %s", mesh_input_string.__name__, string)
 
     data = bytearray(string)
@@ -2519,7 +2410,7 @@ def mesh_input_string(iutctl, string):
     iutctl.btp_worker.send_wait_rsp(*MESH['input_str'], data=data)
 
 
-def mesh_iv_update_test_mode(iutctl, enable):
+def mesh_iv_update_test_mode(iutctl: IutCtl, enable):
     logging.debug("%s", mesh_iv_update_test_mode.__name__)
 
     if enable:
@@ -2532,7 +2423,7 @@ def mesh_iv_update_test_mode(iutctl, enable):
     iutctl.stack.mesh.is_iv_test_mode_enabled.data = True
 
 
-def mesh_iv_update_toggle(iutctl):
+def mesh_iv_update_toggle(iutctl: IutCtl):
     logging.debug("%s", mesh_iv_update_toggle.__name__)
 
     iutctl.btp_worker.send(*MESH['iv_update_toggle'])
@@ -2542,7 +2433,7 @@ def mesh_iv_update_toggle(iutctl):
         logging.info("IV Update in progress")
 
 
-def mesh_net_send(iutctl, ttl, src, dst, payload):
+def mesh_net_send(iutctl: IutCtl, ttl, src, dst, payload):
     logging.debug("%s %r %r %r %r", mesh_net_send.__name__, ttl, src, dst,
                   payload)
 
@@ -2569,7 +2460,7 @@ def mesh_net_send(iutctl, ttl, src, dst, payload):
     iutctl.btp_worker.send_wait_rsp(*MESH['net_send'], data=data)
 
 
-def mesh_health_generate_faults(iutctl):
+def mesh_health_generate_faults(iutctl: IutCtl):
     logging.debug("%s", mesh_health_generate_faults.__name__)
 
     (rsp,) = iutctl.btp_worker.send_wait_rsp(*MESH['health_generate_faults'])
@@ -2589,13 +2480,13 @@ def mesh_health_generate_faults(iutctl):
     return test_id, cur_faults, reg_faults
 
 
-def mesh_health_clear_faults(iutctl):
+def mesh_health_clear_faults(iutctl: IutCtl):
     logging.debug("%s", mesh_health_clear_faults.__name__)
 
     iutctl.btp_worker.send_wait_rsp(*MESH['mesh_clear_faults'])
 
 
-def mesh_lpn(iutctl, enable):
+def mesh_lpn(iutctl: IutCtl, enable):
     logging.debug("%s %r", mesh_lpn.__name__, enable)
 
     if enable:
@@ -2608,13 +2499,13 @@ def mesh_lpn(iutctl, enable):
     iutctl.btp_worker.send_wait_rsp(*MESH['lpn'], data=data)
 
 
-def mesh_lpn_poll(iutctl):
+def mesh_lpn_poll(iutctl: IutCtl):
     logging.debug("%s", mesh_lpn_poll.__name__)
 
     iutctl.btp_worker.send_wait_rsp(*MESH['lpn_poll'])
 
 
-def mesh_model_send(iutctl, src, dst, payload):
+def mesh_model_send(iutctl: IutCtl, src, dst, payload):
     logging.debug("%s %r %r %r", mesh_model_send.__name__, src, dst, payload)
 
     if isinstance(src, str):
@@ -2635,7 +2526,7 @@ def mesh_model_send(iutctl, src, dst, payload):
     iutctl.btp_worker.send_wait_rsp(*MESH['model_send'], data=data)
 
 
-def mesh_lpn_subscribe(iutctl, address):
+def mesh_lpn_subscribe(iutctl: IutCtl, address):
     logging.debug("%s %r", mesh_lpn_subscribe.__name__, address)
 
     if isinstance(address, str):
@@ -2646,7 +2537,7 @@ def mesh_lpn_subscribe(iutctl, address):
     iutctl.btp_worker.send_wait_rsp(*MESH['lpn_subscribe'], data=data)
 
 
-def mesh_lpn_unsubscribe(iutctl, address):
+def mesh_lpn_unsubscribe(iutctl: IutCtl, address):
     logging.debug("%s %r", mesh_lpn_unsubscribe.__name__, address)
 
     if isinstance(address, str):
@@ -2657,13 +2548,13 @@ def mesh_lpn_unsubscribe(iutctl, address):
     iutctl.btp_worker.send_wait_rsp(*MESH['lpn_unsubscribe'], data=data)
 
 
-def mesh_rpl_clear(iutctl):
+def mesh_rpl_clear(iutctl: IutCtl):
     logging.debug("%s", mesh_rpl_clear.__name__)
 
     iutctl.btp_worker.send_wait_rsp(*MESH['rpl_clear'])
 
 
-def mesh_proxy_identity(iutctl):
+def mesh_proxy_identity(iutctl: IutCtl):
     logging.debug("%s", mesh_proxy_identity.__name__)
 
     iutctl.btp_worker.send_wait_rsp(*MESH['proxy_identity'])
@@ -2722,11 +2613,11 @@ def mesh_prov_link_closed_ev(mesh, data, data_len):
     mesh.last_seen_prov_link_state.data = ('closed', bearer)
 
 
-def mesh_store_net_data(iutctl):
+def mesh_store_net_data(iutctl: IutCtl):
     iutctl.stack.mesh.net_recv_ev_store.data = True
 
 
-def mesh_iv_test_mode_autoinit(iutctl):
+def mesh_iv_test_mode_autoinit(iutctl: IutCtl):
     iutctl.stack.mesh.iv_test_mode_autoinit = True
 
 
@@ -2777,7 +2668,7 @@ MESH_EV = {
 
 
 class BTPEventHandler:
-    def __init__(self, iutctl):
+    def __init__(self, iutctl: IutCtl):
         self.iutctl = iutctl
 
     def __call__(self, hdr, data):

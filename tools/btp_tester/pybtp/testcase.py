@@ -23,24 +23,20 @@ def connection_procedure(central, peripheral):
     btp.gap_adv_ind_on(peripheral, ad=[AdData.ad_uuid16])
 
     btp.gap_conn(central,
-                 peripheral.stack.gap.iut_addr_get_str(),
-                 peripheral.stack.gap.iut_addr_get_type())
+                 peripheral.stack.gap.iut_addr_get())
 
     btp.gap_wait_for_connection(peripheral)
     btp.gap_wait_for_connection(central,
-                                addr=peripheral.stack.gap.iut_addr_get_str(),
-                                addr_type=peripheral.stack.gap.iut_addr_get_type())
+                                addr=peripheral.stack.gap.iut_addr_get())
 
 
 def disconnection_procedure(central, peripheral):
     btp.gap_disconn(central,
-                    peripheral.stack.gap.iut_addr_get_str(),
-                    peripheral.stack.gap.iut_addr_get_type())
+                    peripheral.stack.gap.iut_addr_get())
 
     btp.gap_wait_for_disconnection(peripheral)
     btp.gap_wait_for_disconnection(central,
-                                   addr=peripheral.stack.gap.iut_addr_get_str(),
-                                   addr_type=peripheral.stack.gap.iut_addr_get_type())
+                                   addr=peripheral.stack.gap.iut_addr_get())
 
 
 class BTPTestCase(unittest.TestCase):
@@ -135,8 +131,7 @@ class GAPTestCase(BTPTestCase):
         time.sleep(5)
         btp.gap_stop_discov(self.iut)
         found = btp.check_discov_results(self.iut,
-                                         self.lt.stack.gap.iut_addr_get_str(),
-                                         self.lt.stack.gap.iut_addr_get_type())
+                                         self.lt.stack.gap.iut_addr_get())
         self.assertTrue(found)
 
     def test_scan_rpa(self):
@@ -189,8 +184,7 @@ class GAPTestCase(BTPTestCase):
         self.assertIsNotNone(found)
 
         btp.gap_conn(self.iut,
-                     found.addr.decode(),
-                     found.addr_type)
+                     found.addr)
 
         btp.gap_wait_for_connection(self.iut)
         btp.gap_wait_for_connection(self.lt)
@@ -199,8 +193,7 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.lt.stack.gap.is_connected())
 
         btp.gap_disconn(self.iut,
-                        found.addr.decode(),
-                        found.addr_type)
+                        found.addr)
 
         btp.gap_wait_for_disconnection(self.lt)
         btp.gap_wait_for_disconnection(self.iut)
@@ -226,8 +219,7 @@ class GAPTestCase(BTPTestCase):
         self.assertIsNotNone(found)
 
         btp.gap_conn(self.iut,
-                     found.addr.decode(),
-                     found.addr_type)
+                     found.addr)
 
         btp.gap_wait_for_connection(self.iut)
         btp.gap_wait_for_connection(self.lt)
@@ -236,14 +228,12 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.lt.stack.gap.is_connected())
 
         btp.gap_pair(self.iut,
-                     found.addr.decode(),
-                     found.addr_type)
+                     found.addr)
 
         time.sleep(10)
 
         btp.gap_disconn(self.iut,
-                        found.addr.decode(),
-                        found.addr_type)
+                        found.addr)
 
         btp.gap_wait_for_disconnection(self.lt)
         btp.gap_wait_for_disconnection(self.iut)
@@ -260,8 +250,7 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gap_pair(self.iut,
-                     self.lt.stack.gap.iut_addr_get_str(),
-                     self.lt.stack.gap.iut_addr_get_type())
+                     self.lt.stack.gap.iut_addr_get())
 
         pk_iut = self.iut.stack.gap.get_passkey()
         self.assertIsNotNone(pk_iut)
@@ -270,12 +259,10 @@ class GAPTestCase(BTPTestCase):
         self.assertEqual(pk_iut, pk_lt)
 
         btp.gap_passkey_confirm(self.iut,
-                                self.lt.stack.gap.iut_addr_get_str(),
-                                self.lt.stack.gap.iut_addr_get_type(), 1)
+                                self.lt.stack.gap.iut_addr_get(), 1)
 
         btp.gap_passkey_confirm(self.lt,
-                                self.iut.stack.gap.iut_addr_get_str(),
-                                self.iut.stack.gap.iut_addr_get_type(), 1)
+                                self.iut.stack.gap.iut_addr_get(), 1)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
@@ -290,19 +277,16 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gap_pair(self.iut,
-                     self.lt.stack.gap.iut_addr_get_str(),
-                     self.lt.stack.gap.iut_addr_get_type())
+                     self.lt.stack.gap.iut_addr_get())
 
         pk_lt = self.lt.stack.gap.get_passkey()
         self.assertIsNotNone(pk_lt)
 
         btp.gap_passkey_entry_req_ev(self.iut,
-                                     self.lt.stack.gap.iut_addr_get_str(),
-                                     self.lt.stack.gap.iut_addr_get_type())
+                                     self.lt.stack.gap.iut_addr_get())
 
         btp.gap_passkey_entry_rsp(self.iut,
-                                  self.lt.stack.gap.iut_addr_get_str(),
-                                  self.lt.stack.gap.iut_addr_get_type(),
+                                  self.lt.stack.gap.iut_addr_get(),
                                   pk_lt)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
@@ -316,8 +300,7 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_disc_full(self.iut,
-                            self.lt.stack.gap.iut_addr_get_type(),
-                            self.lt.stack.gap.iut_addr_get_str())
+                            self.lt.stack.gap.iut_addr_get())
 
         self.iut.stack.gatt.print_db()
 
@@ -333,8 +316,7 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_disc_prim_svcs(self.iut,
-                                 self.lt.stack.gap.iut_addr_get_type(),
-                                 self.lt.stack.gap.iut_addr_get_str())
+                                 self.lt.stack.gap.iut_addr_get())
 
         btp.gattc_disc_prim_svcs_rsp(self.iut)
 
@@ -352,8 +334,7 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_disc_prim_uuid(self.iut,
-                                 self.lt.stack.gap.iut_addr_get_type(),
-                                 self.lt.stack.gap.iut_addr_get_str(),
+                                 self.lt.stack.gap.iut_addr_get(),
                                  UUID.gap_svc)
 
         btp.gattc_disc_prim_uuid_rsp(self.iut)
@@ -372,8 +353,7 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_disc_all_chrc(self.iut,
-                                self.lt.stack.gap.iut_addr_get_type(),
-                                self.lt.stack.gap.iut_addr_get_str(),
+                                self.lt.stack.gap.iut_addr_get(),
                                 0x0001, 0xffff)
 
         btp.gattc_disc_all_chrc_rsp(self.iut)
@@ -392,8 +372,7 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_disc_chrc_uuid(self.iut,
-                                 self.lt.stack.gap.iut_addr_get_type(),
-                                 self.lt.stack.gap.iut_addr_get_str(),
+                                 self.lt.stack.gap.iut_addr_get(),
                                  0x0001, 0xffff, UUID.device_name)
 
         btp.gattc_disc_chrc_uuid_rsp(self.iut)
@@ -412,8 +391,7 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_disc_all_desc(self.iut,
-                                self.lt.stack.gap.iut_addr_get_type(),
-                                self.lt.stack.gap.iut_addr_get_str(),
+                                self.lt.stack.gap.iut_addr_get(),
                                 0x0001, 0xffff)
 
         btp.gattc_disc_all_desc_rsp(self.iut)
@@ -427,7 +405,7 @@ class GAPTestCase(BTPTestCase):
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_read_write(self):
-        value_handle = 33
+        value_handle = 37
         connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
@@ -435,8 +413,7 @@ class GAPTestCase(BTPTestCase):
         verify_values = self.iut.stack.gatt.verify_values
 
         btp.gattc_read(self.iut,
-                       self.lt.stack.gap.iut_addr_get_type(),
-                       self.lt.stack.gap.iut_addr_get_str(),
+                       self.lt.stack.gap.iut_addr_get(),
                        value_handle)
 
         btp.gattc_read_rsp(self.iut, store_rsp=True, store_val=True)
@@ -445,8 +422,7 @@ class GAPTestCase(BTPTestCase):
         self.assertEqual(verify_values[1], "00".encode())
 
         btp.gattc_write(self.iut,
-                        self.lt.stack.gap.iut_addr_get_type(),
-                        self.lt.stack.gap.iut_addr_get_str(),
+                        self.lt.stack.gap.iut_addr_get(),
                         value_handle,
                         "01")
 
@@ -455,8 +431,7 @@ class GAPTestCase(BTPTestCase):
         self.assertEqual(verify_values[0], "No error")
 
         btp.gattc_read(self.iut,
-                       self.lt.stack.gap.iut_addr_get_type(),
-                       self.lt.stack.gap.iut_addr_get_str(),
+                       self.lt.stack.gap.iut_addr_get(),
                        value_handle)
 
         btp.gattc_read_rsp(self.iut, store_rsp=True, store_val=True)
@@ -470,14 +445,13 @@ class GAPTestCase(BTPTestCase):
 
     def test_gattc_notification(self):
         value_id = 4
-        cccd_handle = 34
+        cccd_handle = 38
         connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_cfg_notify(self.iut,
-                             self.lt.stack.gap.iut_addr_get_type(),
-                             self.lt.stack.gap.iut_addr_get_str(),
+                             self.lt.stack.gap.iut_addr_get(),
                              1, cccd_handle)
 
         time.sleep(1)
@@ -487,8 +461,7 @@ class GAPTestCase(BTPTestCase):
                           "0001")
 
         btp.gattc_notification_ev(self.iut,
-                                  self.lt.stack.gap.iut_addr_get_str(),
-                                  self.lt.stack.gap.iut_addr_get_type(),
+                                  self.lt.stack.gap.iut_addr_get(),
                                   0x01)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
@@ -497,14 +470,13 @@ class GAPTestCase(BTPTestCase):
 
     def test_gattc_indication(self):
         value_id = 4
-        cccd_handle = 34
+        cccd_handle = 38
         connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_cfg_indicate(self.iut,
-                               self.lt.stack.gap.iut_addr_get_type(),
-                               self.lt.stack.gap.iut_addr_get_str(),
+                               self.lt.stack.gap.iut_addr_get(),
                                1, cccd_handle)
 
         time.sleep(1)
@@ -514,8 +486,7 @@ class GAPTestCase(BTPTestCase):
                           "0001")
 
         btp.gattc_notification_ev(self.iut,
-                                  self.lt.stack.gap.iut_addr_get_str(),
-                                  self.lt.stack.gap.iut_addr_get_type(),
+                                  self.lt.stack.gap.iut_addr_get(),
                                   0x02)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
