@@ -19,13 +19,13 @@ def main():
 
     mynewt1 = MynewtCtl('/dev/ttyACM0', '683056478')
     mynewt2 = MynewtCtl('/dev/ttyACM1', '683357425')
-    android = AndroidCtl('192.168.9.123', 8765)
+    # android = AndroidCtl('192.168.9.123', 8765)
 
     def suite():
         suite = unittest.TestSuite()
-        suite.addTest(GAPTestCaseLT2('test_connection',
-                                     android, mynewt1, mynewt2))
-        # suite.addTests(GAPTestCase.init_testcases(mynewt1, mynewt2))
+        # suite.addTest(GAPTestCase('test_connection',
+        #                              android, mynewt1))
+        suite.addTests(GAPTestCase.init_testcases(mynewt1, mynewt2))
         return suite
 
     runner = unittest.TextTestRunner(verbosity=2)

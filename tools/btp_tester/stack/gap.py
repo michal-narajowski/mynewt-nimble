@@ -3,15 +3,55 @@ from asyncio import Event
 from collections import namedtuple
 from threading import Timer
 
+from pybtp.types import addr2btp_ba
 from stack.property import Property, timeout_cb
 
-LeAdv = namedtuple('LeAdv', 'addr_type addr rssi flags eir')
+LeAdv = namedtuple('LeAdv', 'addr rssi flags eir')
+
+
+class BleAddress:
+    def __init__(self, addr: str, addr_type: int):
+        addr = addr.lower()
+
+        self._addr_type = addr_type
+        self._addr = addr
+
+    @property
+    def addr(self):
+        return self._addr
+
+    @property
+    def addr_type(self):
+        return self._addr_type
+
+    def __eq__(self, other):
+        return ((self.addr_type == other.addr_type) and
+                (self.addr == other.addr))
+
+    def __hash__(self):
+        return self.addr.__hash__()
+
+    def __repr__(self):
+        return "(%r %r)" % (self._addr_type, self._addr)
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __iter__(self):
+        return self.__bytes__().__iter__()
+
+    def __bytes__(self):
+        data_ba = bytearray()
+        bd_addr_ba = addr2btp_ba(self.addr)
+
+        data_ba.extend([self.addr_type])
+        data_ba.extend(bd_addr_ba)
+        return data_ba
 
 
 class Connection:
-    def __init__(self, addr, addr_type):
-        self.addr_type = addr
-        self.addr = addr_type
+    def __init__(self, addr: BleAddress):
+        self.addr = addr
 
 
 class Gap:
@@ -47,33 +87,20 @@ class Gap:
 
         self.passkey = Property(None)
 
-    def connected(self, addr, addr_type):
-        try:
-            addr = addr.decode()
-        except AttributeError:
-            pass
-        self.connections.data[addr] = Connection(addr, addr_type)
+    def connected(self, addr: BleAddress):
+        self.connections.data[addr] = Connection(addr)
 
-    def disconnected(self, addr, addr_type):
-        try:
-            addr = addr.decode()
-        except AttributeError:
-            pass
+    def disconnected(self, addr: BleAddress):
         self.connections.data.pop(addr)
 
-    def is_connected(self, addr=None, addr_type=None):
+    def is_connected(self, addr: BleAddress = None):
         if not addr:
             return len(self.connections.data) > 0
-
-        try:
-            addr = addr.decode()
-        except AttributeError:
-            pass
         conn = self.connections.data.get(addr, None)
         return conn is not None
 
-    def wait_for_connection(self, timeout, addr=None, addr_type=None):
-        if self.is_connected(addr, addr_type):
+    def wait_for_connection(self, timeout, addr: BleAddress = None):
+        if self.is_connected(addr):
             return True
 
         flag = Event()
@@ -83,14 +110,14 @@ class Gap:
         t.start()
 
         while flag.is_set():
-            if self.is_connected(addr, addr_type):
+            if self.is_connected(addr):
                 t.cancel()
                 return True
 
         return False
 
-    def wait_for_disconnection(self, timeout, addr=None, addr_type=None):
-        if not self.is_connected(addr, addr_type):
+    def wait_for_disconnection(self, timeout, addr: BleAddress = None):
+        if not self.is_connected(addr):
             return True
 
         flag = Event()
@@ -100,7 +127,7 @@ class Gap:
         t.start()
 
         while flag.is_set():
-            if not self.is_connected(addr, addr_type):
+            if not self.is_connected(addr):
                 t.cancel()
                 return True
 
@@ -128,22 +155,17 @@ class Gap:
                           self.current_settings_get.__name__, key)
             return False
 
-    def iut_addr_get_str(self):
-        return self.iut_bd_addr.data["address"].decode()
+    def iut_addr_get(self) -> BleAddress:
+        return self.iut_bd_addr
 
-    def iut_addr_get_bytes(self):
-        return self.iut_bd_addr.data["address"]
+    def iut_addr_get_str(self) -> str:
+        return self.iut_bd_addr.addr
 
-    def iut_addr_get_type(self):
-        return int(self.iut_bd_addr.data["type"])
+    def iut_addr_get_type(self) -> int:
+        return self.iut_bd_addr.addr_type
 
-    def iut_addr_set(self, addr, addr_type):
-        self.iut_bd_addr.data["address"] = addr
-        self.iut_bd_addr.data["type"] = addr_type
-
-    def iut_addr_is_random(self):
-        # FIXME: Do not use hard-coded 0x01 <-> le_random
-        return True if self.iut_bd_addr.data["type"] == 0x01 else False
+    def iut_addr_set(self, addr: BleAddress):
+        self.iut_bd_addr = addr
 
     def iut_has_privacy(self):
         return self.current_settings_get("Privacy")
