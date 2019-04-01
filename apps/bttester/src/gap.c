@@ -879,10 +879,10 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 			rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
 			assert(rc == 0);
 			print_conn_desc(&desc);
-		}
 
-		if (desc.role == BLE_GAP_ROLE_SLAVE) {
-			adv_complete();
+			if (desc.role == BLE_GAP_ROLE_SLAVE) {
+				adv_complete();
+			}
 		}
 
 		le_connected(event->connect.conn_handle,

@@ -26,7 +26,6 @@ pkg.keywords:
 
 pkg.deps:
     - "@apache-mynewt-core/kernel/os"
-    - "@apache-mynewt-core/sys/console/full"
     - "@apache-mynewt-core/sys/log/full"
     - "@apache-mynewt-core/sys/log/modlog"
     - "@apache-mynewt-core/sys/stats/full"
@@ -38,5 +37,6 @@ pkg.deps:
     - "@apache-mynewt-nimble/nimble/host/store/ram"
     - "@apache-mynewt-nimble/nimble/transport/ram"
     - "@apache-mynewt-core/hw/drivers/uart"
-    - "@apache-mynewt-core/hw/drivers/rtt"
+#    - "@apache-mynewt-core/hw/drivers/rtt"
 
+    - "@apache-mynewt-core/sys/console/stub"

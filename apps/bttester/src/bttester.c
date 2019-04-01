@@ -31,6 +31,7 @@
 
 #include "syscfg/syscfg.h"
 #include "console/console.h"
+#include "os/os.h"
 
 #include "bttester_pipe.h"
 #include "bttester.h"
