@@ -1,7 +1,10 @@
+import logging
+import struct
 import time
 import unittest
 
 from pybtp import btp
+from pybtp.btp import btp2uuid
 from pybtp.types import IOCap, AdType, UUID
 
 
@@ -46,8 +49,8 @@ class BTPTestCase(unittest.TestCase):
         if iut is None:
             raise Exception("IUT is None")
 
-        if lt is None:
-            raise Exception("LT is None")
+        # if lt is None:
+        #     raise Exception("LT is None")
 
         self.iut = iut
         self.lt = lt
@@ -63,12 +66,12 @@ class BTPTestCase(unittest.TestCase):
     def setUp(self):
         self.iut.start()
         self.iut.wait_iut_ready_event()
-        self.lt.start()
-        self.lt.wait_iut_ready_event()
+        # self.lt.start()
+        # self.lt.wait_iut_ready_event()
 
     def tearDown(self):
         self.iut.stop()
-        self.lt.stop()
+        # self.lt.stop()
 
 
 class BTPTestCaseLT2(unittest.TestCase):
@@ -117,7 +120,7 @@ class GAPTestCase(BTPTestCase):
     def setUp(self):
         super(__class__, self).setUp()
         preconditions(self.iut)
-        preconditions(self.lt)
+        # preconditions(self.lt)
 
     def tearDown(self):
         super(__class__, self).tearDown()
@@ -492,6 +495,17 @@ class GAPTestCase(BTPTestCase):
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
+
+    def test_gatts_get_attrs(self):
+        btp.gatts_start_server(self.iut)
+
+        attributes = btp.gatts_get_attrs(self.iut, start_handle=52, end_handle=53)
+        for attr in attributes:
+            print(attr)
+        database = btp.gatts_get_attribute_values(self.iut, attributes)
+        for hdl, attr in sorted(database.items()):
+            (attr_type, value) = attr
+            print("{} {} {!r}".format(hdl, attr_type, value))
 
 
 class GAPTestCaseLT2(BTPTestCaseLT2):

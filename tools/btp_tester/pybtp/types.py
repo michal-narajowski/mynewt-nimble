@@ -113,6 +113,10 @@ class AdFlags:
 
 
 class UUID:
+    primary_svc = '0x2800'
+    secondary_svc = '0x2801'
+    include_svc = '0x2802'
+    chrc = '0x2803'
     gap_svc = '1800'
     gatt_svc = '1801'
     CEP = '2900'

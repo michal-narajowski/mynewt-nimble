@@ -18,13 +18,13 @@
 import binascii
 import logging
 import struct
-from uuid import UUID
+import uuid
 
 from common.iutctl import IutCtl
 from pybtp import defs
 from stack.gap import LeAdv, BleAddress
 from .types import BTPError, gap_settings_btp2txt, addr2btp_ba, Addr, parse_ad, \
-    ad_find_name
+    ad_find_name, UUID
 
 CONTROLLER_INDEX = 0
 
@@ -631,7 +631,8 @@ def gap_set_powered_off(iutctl: IutCtl):
     __gap_current_settings_update(iutctl.stack.gap, tuple_data)
 
 
-def gap_start_discov(iutctl: IutCtl, transport='le', type='active', mode='general'):
+def gap_start_discov(iutctl: IutCtl, transport='le', type='active',
+                     mode='general'):
     """GAP Start Discovery function.
 
     Possible options (key: <values>):
@@ -877,6 +878,7 @@ GAP_EV = {
     defs.GAP_EV_PASSKEY_CONFIRM_REQ: gap_passkey_confirm_req_ev_,
 }
 
+
 def gatts_add_svc(iutctl: IutCtl, svc_type, uuid):
     logging.debug("%s %r %r", gatts_add_svc.__name__, svc_type, uuid)
 
@@ -1056,7 +1058,7 @@ def btp2uuid(uuid_len, uu):
         (uu,) = struct.unpack("H", uu)
         return hex(uu)
     else:
-        return UUID(bytes=uu[::-1]).urn[9:]
+        return uuid.UUID(bytes=uu[::-1]).urn[9:]
 
 
 def dec_gatts_get_attrs_rp(data, data_len):
@@ -1158,6 +1160,65 @@ def gatts_get_attr_val(iutctl: IutCtl, handle):
     return struct.unpack(hdr + '%ds' % data_len, tuple_data[0])
 
 
+def gatts_parse_attribute(hdl, perm, type_uuid, data):
+    att_rsp, val_len, value = data
+
+    if (type_uuid == UUID.primary_svc) or \
+            (type_uuid == UUID.secondary_svc):
+        svc_uuid = btp2uuid(len(value), value)
+        return ("service", (hdl, 0xffff, svc_uuid))
+    elif type_uuid == UUID.include_svc:
+        hdr = '<HH'
+        hdr_len = struct.calcsize(hdr)
+
+        incl_hdl, end_hdl = struct.unpack_from(hdr, value)
+        incl_uuid = None
+
+        uuid_len = len(value) - hdr_len
+        if uuid_len > 0:
+            uuid = struct.unpack_from('%ds' % uuid_len, value[hdr_len:])
+            incl_uuid = btp2uuid(uuid_len, uuid)
+
+        return ("include", (hdl, incl_hdl, end_hdl, incl_uuid))
+    elif type_uuid == UUID.chrc:
+        hdr = '<BH'
+        hdr_len = struct.calcsize(hdr)
+
+        props, val_hdl = struct.unpack_from(hdr, value)
+
+        uuid_len = len(value) - hdr_len
+        uuid = struct.unpack_from('%ds' % uuid_len, value[hdr_len:])
+        chr_uuid = btp2uuid(uuid_len, uuid[0])
+
+        return ("characteristic", (hdl, val_hdl, props, chr_uuid))
+    else:
+        return ("descriptor", (hdl, type_uuid))
+
+
+def gatts_get_attribute_values(iutctl: IutCtl, attributes):
+    database = {}
+    store_chr_def = None
+
+    for attr in attributes:
+        hdl, perm, type_uuid = attr
+        rsp = gatts_get_attr_val(iutctl, hdl)
+
+        if store_chr_def:
+            _, _, _, chr_uuid = store_chr_def[1]
+            store_chr_def = None
+            if type_uuid == chr_uuid:
+                continue
+
+        attribute = gatts_parse_attribute(hdl, perm, type_uuid, rsp)
+
+        if attribute[0] == 'characteristic':
+            store_chr_def = attribute
+
+        database[hdl] = attribute
+
+    return database
+
+
 def gattc_exchange_mtu(iutctl: IutCtl, bd_addr: BleAddress):
     logging.debug("%s %r", gattc_exchange_mtu.__name__, bd_addr)
 
@@ -1219,7 +1280,8 @@ def gattc_find_included(iutctl: IutCtl, bd_addr: BleAddress,
     iutctl.btp_worker.send(*GATTC['find_included'], data=data_ba)
 
 
-def gattc_disc_all_chrc_find_attrs_rsp(iutctl: IutCtl, exp_chars, store_attrs=False):
+def gattc_disc_all_chrc_find_attrs_rsp(iutctl: IutCtl, exp_chars,
+                                       store_attrs=False):
     """Parse and find requested characteristics from rsp
 
     ATTRIBUTE FORMAT (CHARACTERISTIC) - (handle, val handle, props, uuid)
@@ -1255,7 +1317,8 @@ def gattc_disc_all_chrc_find_attrs_rsp(iutctl: IutCtl, exp_chars, store_attrs=Fa
                 gatt.add_chrs(char)
 
 
-def gattc_disc_all_chrc(iutctl: IutCtl, bd_addr: BleAddress, start_hdl, stop_hdl,
+def gattc_disc_all_chrc(iutctl: IutCtl, bd_addr: BleAddress, start_hdl,
+                        stop_hdl,
                         svc=None):
     logging.debug("%s %r %r %r %r", gattc_disc_all_chrc.__name__,
                   bd_addr, start_hdl, stop_hdl, svc)
@@ -1804,7 +1867,8 @@ def gatt_dec_write_rsp(data):
     return ord(data)
 
 
-def gattc_disc_prim_uuid_find_attrs_rsp(iutctl: IutCtl, exp_svcs, store_attrs=False):
+def gattc_disc_prim_uuid_find_attrs_rsp(iutctl: IutCtl, exp_svcs,
+                                        store_attrs=False):
     """Parse and find requested services from rsp
 
     ATTRIBUTE FORMAT (PRIMARY SERVICE) - (start handle, end handle, uuid)
@@ -2052,7 +2116,8 @@ att_rsp_str = {0: "No error",
                }
 
 
-def gattc_read_rsp(iutctl: IutCtl, store_rsp=False, store_val=False, timeout=None):
+def gattc_read_rsp(iutctl: IutCtl, store_rsp=False, store_val=False,
+                   timeout=None):
     if timeout:
         tuple_hdr, tuple_data = iutctl.btp_worker.read(timeout)
     else:
