@@ -25,6 +25,8 @@ from pybtp import defs
 from stack.gap import LeAdv, BleAddress
 from .types import BTPError, gap_settings_btp2txt, addr2btp_ba, Addr, parse_ad, \
     ad_find_name, UUID
+from stack.gatt import GattDB, GattPrimary, GattSecondary, GattCharacteristic, \
+    GattServiceIncluded, GattCharacteristicDescriptor
 
 CONTROLLER_INDEX = 0
 
@@ -1059,6 +1061,63 @@ def btp2uuid(uuid_len, uu):
         return format(uu, 'x').upper()
     else:
         return uuid.UUID(bytes=uu[::-1]).urn[9:].replace('-', '').upper()
+
+
+def gatt_server_fetch_db(iutctl):
+    db = GattDB()
+    char_val_set = set()
+
+    attrs = gatts_get_attrs(iutctl)
+    for attr in attrs:
+        handle, perm, type_uuid = attr
+
+        attr_val = gatts_get_attr_val(iutctl, handle)
+        if not attr_val:
+            logging.debug("cannot read value %r", handle)
+            continue
+
+        att_rsp, val_len, val = attr_val
+
+        if handle in char_val_set:
+            char_val_set.remove(handle)
+            continue
+
+        if type_uuid == '2800' or type_uuid == '2801':
+            uuid = btp2uuid(val_len, val)
+
+            if type_uuid == '2800':
+                db.attr_add(handle, GattPrimary(handle, perm, uuid, att_rsp))
+            else:
+                db.attr_add(handle, GattSecondary(handle, perm, uuid, att_rsp))
+        elif type_uuid == '2803':
+
+            hdr = '<BH'
+            hdr_len = struct.calcsize(hdr)
+            uuid_len = val_len - hdr_len
+
+            prop, value_handle, uuid = struct.unpack("<BH%ds" % uuid_len, val)
+            uuid = btp2uuid(uuid_len, uuid)
+
+            char_val_set.add(value_handle)
+
+            db.attr_add(handle, GattCharacteristic(handle, perm, uuid, att_rsp, prop, value_handle))
+        elif type_uuid == '2802':
+            hdr = "<HH"
+            hdr_len = struct.calcsize(hdr)
+            uuid_len = val_len - hdr_len
+            incl_svc_hdl, end_grp_hdl, uuid = struct.unpack(hdr + "%ds" % uuid_len, val)
+            if uuid_len > 0:
+                uuid = btp2uuid(uuid_len, uuid)
+            else:
+                uuid = None
+
+            db.attr_add(handle, GattServiceIncluded(handle, perm, uuid, att_rsp, incl_svc_hdl, end_grp_hdl))
+        else:
+            uuid = type_uuid.replace("0x", "").replace("-", "").upper()
+
+            db.attr_add(handle, GattCharacteristicDescriptor(handle, perm, uuid, att_rsp, val))
+
+    return db
 
 
 def dec_gatts_get_attrs_rp(data, data_len):

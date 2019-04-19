@@ -1,10 +1,7 @@
-import logging
-import struct
 import time
 import unittest
 
 from pybtp import btp
-from pybtp.btp import btp2uuid
 from pybtp.types import IOCap, AdType, UUID
 
 
@@ -40,7 +37,6 @@ def disconnection_procedure(central, peripheral):
     btp.gap_wait_for_disconnection(peripheral)
     btp.gap_wait_for_disconnection(central,
                                    addr=peripheral.stack.gap.iut_addr_get())
-
 
 class BTPTestCase(unittest.TestCase):
     def __init__(self, testname, iut, lt):
@@ -499,13 +495,8 @@ class GAPTestCase(BTPTestCase):
     def test_gatts_get_attrs(self):
         btp.gatts_start_server(self.iut)
 
-        attributes = btp.gatts_get_attrs(self.iut, start_handle=52, end_handle=53)
-        for attr in attributes:
-            print(attr)
-        database = btp.gatts_get_attribute_values(self.iut, attributes)
-        for hdl, attr in sorted(database.items()):
-            (attr_type, value) = attr
-            print("{} {} {!r}".format(hdl, attr_type, value))
+        db = btp.gatt_server_fetch_db(self.iut)
+        db.print_db()
 
 
 class GAPTestCaseLT2(BTPTestCaseLT2):

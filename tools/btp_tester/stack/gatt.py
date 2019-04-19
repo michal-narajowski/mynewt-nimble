@@ -1,3 +1,6 @@
+from asyncio import Event
+
+
 class Gatt:
     def __init__(self):
         self.verify_values = []
@@ -70,3 +73,79 @@ class Gatt:
 
         # If there are no more characteristics then return 0xffff
         return 0xffff
+
+class GattAttribute:
+    def __init__(self, handle, perm, uuid, att_rsp):
+        self.handle = handle
+        self.perm = perm
+        self.uuid = uuid
+        self.att_read_rsp = att_rsp
+
+    def __repr__(self):
+        return "{}({} {} {} {})".format(self.__class__.__name__,
+                                        self.handle, self.perm,
+                                        self.uuid, self.att_read_rsp)
+
+
+class GattService(GattAttribute):
+    pass
+
+
+class GattPrimary(GattService):
+    pass
+
+
+class GattSecondary(GattService):
+    pass
+
+
+class GattServiceIncluded(GattAttribute):
+    def __init__(self, handle, perm, uuid, att_rsp, incl_svc_hdl, end_grp_hdl):
+        GattAttribute.__init__(self, handle, perm, uuid, att_rsp)
+        self.incl_svc_hdl = incl_svc_hdl
+        self.end_grp_hdl = end_grp_hdl
+
+    def __repr__(self):
+        return "{}({} {})".format(super(GattServiceIncluded, self).__repr__(),
+                                  self.incl_svc_hdl,
+                                  self.end_grp_hdl)
+
+
+class GattCharacteristic(GattAttribute):
+    def __init__(self, handle, perm, uuid, att_rsp, prop, value_handle):
+        GattAttribute.__init__(self, handle, perm, uuid, att_rsp)
+        self.prop = prop
+        self.value_handle = value_handle
+
+    def __repr__(self):
+        return "{}({} {})".format(super(GattCharacteristic, self).__repr__(),
+                                  self.prop, self.value_handle)
+
+class GattCharacteristicDescriptor(GattAttribute):
+    def __init__(self, handle, perm, uuid, att_rsp, value):
+        GattAttribute.__init__(self, handle, perm, uuid, att_rsp)
+        self.value = value
+        self.has_changed = Event()
+
+    def __repr__(self):
+        return "{}({})".format(super(GattCharacteristicDescriptor,
+                                     self).__repr__(),
+                               self.value)
+
+
+class GattDB:
+    def __init__(self):
+        self.db = dict()
+
+    def attr_add(self, handle, attr):
+        self.db[handle] = attr
+
+    def attr_lookup_handle(self, handle):
+        if handle in self.db:
+            return self.db[handle]
+        else:
+            return None
+
+    def print_db(self):
+        for hdl, attr in sorted(self.db.items()):
+            print("{} {!r}".format(hdl, attr))
