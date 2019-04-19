@@ -1056,9 +1056,9 @@ def gatts_verify_write_fail(iutctl: IutCtl, description):
 def btp2uuid(uuid_len, uu):
     if uuid_len == 2:
         (uu,) = struct.unpack("H", uu)
-        return hex(uu)
+        return format(uu, 'x').upper()
     else:
-        return uuid.UUID(bytes=uu[::-1]).urn[9:]
+        return uuid.UUID(bytes=uu[::-1]).urn[9:].replace('-', '').upper()
 
 
 def dec_gatts_get_attrs_rp(data, data_len):
@@ -1177,7 +1177,7 @@ def gatts_parse_attribute(hdl, perm, type_uuid, data):
         uuid_len = len(value) - hdr_len
         if uuid_len > 0:
             uuid = struct.unpack_from('%ds' % uuid_len, value[hdr_len:])
-            incl_uuid = btp2uuid(uuid_len, uuid)
+            incl_uuid = btp2uuid(uuid_len, uuid[0])
 
         return ("include", (hdl, incl_hdl, end_hdl, incl_uuid))
     elif type_uuid == UUID.chrc:
