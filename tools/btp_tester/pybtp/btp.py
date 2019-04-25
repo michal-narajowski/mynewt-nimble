@@ -885,7 +885,7 @@ def gatts_add_svc(iutctl: IutCtl, svc_type, uuid):
     logging.debug("%s %r %r", gatts_add_svc.__name__, svc_type, uuid)
 
     data_ba = bytearray()
-    uuid_ba = binascii.unhexlify(uuid.translate(None, "-"))[::-1]
+    uuid_ba = binascii.unhexlify(uuid.replace("-", ""))[::-1]
 
     data_ba.extend([svc_type])
     data_ba.extend([len(uuid_ba)])
@@ -893,7 +893,14 @@ def gatts_add_svc(iutctl: IutCtl, svc_type, uuid):
 
     iutctl.btp_worker.send(*GATTS['add_svc'], data=data_ba)
 
-    gatt_command_rsp_succ(iutctl)
+    tuple_hdr, tuple_data = iutctl.btp_worker.read()
+    logging.debug("received %r %r", tuple_hdr, tuple_data)
+
+    btp_hdr_check(tuple_hdr, defs.BTP_SERVICE_ID_GATT,
+                  defs.GATT_ADD_SERVICE)
+
+    data = struct.unpack('H', tuple_data[0])
+    return data[0]
 
 
 def gatts_add_inc_svc(iutctl: IutCtl, hdl):
@@ -908,7 +915,14 @@ def gatts_add_inc_svc(iutctl: IutCtl, hdl):
 
     iutctl.btp_worker.send(*GATTS['add_inc_svc'], data=data_ba)
 
-    gatt_command_rsp_succ(iutctl)
+    tuple_hdr, tuple_data = iutctl.btp_worker.read()
+    logging.debug("received %r %r", tuple_hdr, tuple_data)
+
+    btp_hdr_check(tuple_hdr, defs.BTP_SERVICE_ID_GATT,
+                  defs.GATT_ADD_INCLUDED_SERVICE)
+
+    data = struct.unpack('H', tuple_data[0])
+    return data[0]
 
 
 def gatts_add_char(iutctl: IutCtl, hdl, prop, perm, uuid):
@@ -920,7 +934,7 @@ def gatts_add_char(iutctl: IutCtl, hdl, prop, perm, uuid):
 
     data_ba = bytearray()
     hdl_ba = struct.pack('H', hdl)
-    uuid_ba = binascii.unhexlify(uuid.translate(None, "-"))[::-1]
+    uuid_ba = binascii.unhexlify(uuid.replace("-", ""))[::-1]
 
     data_ba.extend(hdl_ba)
     data_ba.extend([prop])
@@ -930,7 +944,14 @@ def gatts_add_char(iutctl: IutCtl, hdl, prop, perm, uuid):
 
     iutctl.btp_worker.send(*GATTS['add_char'], data=data_ba)
 
-    gatt_command_rsp_succ(iutctl)
+    tuple_hdr, tuple_data = iutctl.btp_worker.read()
+    logging.debug("received %r %r", tuple_hdr, tuple_data)
+
+    btp_hdr_check(tuple_hdr, defs.BTP_SERVICE_ID_GATT,
+                  defs.GATT_ADD_CHARACTERISTIC)
+
+    data = struct.unpack('H', tuple_data[0])
+    return data[0]
 
 
 def gatts_set_val(iutctl: IutCtl, hdl, val):
@@ -961,7 +982,7 @@ def gatts_add_desc(iutctl: IutCtl, hdl, perm, uuid):
 
     data_ba = bytearray()
     hdl_ba = struct.pack('H', hdl)
-    uuid_ba = binascii.unhexlify(uuid.translate(None, "-"))[::-1]
+    uuid_ba = binascii.unhexlify(uuid.replace("-", ""))[::-1]
 
     data_ba.extend(hdl_ba)
     data_ba.extend([perm])
@@ -970,7 +991,14 @@ def gatts_add_desc(iutctl: IutCtl, hdl, perm, uuid):
 
     iutctl.btp_worker.send(*GATTS['add_desc'], data=data_ba)
 
-    gatt_command_rsp_succ(iutctl)
+    tuple_hdr, tuple_data = iutctl.btp_worker.read()
+    logging.debug("received %r %r", tuple_hdr, tuple_data)
+
+    btp_hdr_check(tuple_hdr, defs.BTP_SERVICE_ID_GATT,
+                  defs.GATT_ADD_DESCRIPTOR)
+
+    data = struct.unpack('H', tuple_data[0])
+    return data[0]
 
 
 def gatts_start_server(iutctl: IutCtl):
