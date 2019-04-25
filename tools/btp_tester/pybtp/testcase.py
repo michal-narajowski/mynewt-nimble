@@ -45,8 +45,8 @@ class BTPTestCase(unittest.TestCase):
         if iut is None:
             raise Exception("IUT is None")
 
-        # if lt is None:
-        #     raise Exception("LT is None")
+        if lt is None:
+            raise Exception("LT is None")
 
         self.iut = iut
         self.lt = lt
@@ -62,12 +62,12 @@ class BTPTestCase(unittest.TestCase):
     def setUp(self):
         self.iut.start()
         self.iut.wait_iut_ready_event()
-        # self.lt.start()
-        # self.lt.wait_iut_ready_event()
+        self.lt.start()
+        self.lt.wait_iut_ready_event()
 
     def tearDown(self):
         self.iut.stop()
-        # self.lt.stop()
+        self.lt.stop()
 
 
 class BTPTestCaseLT2(unittest.TestCase):
@@ -116,7 +116,7 @@ class GAPTestCase(BTPTestCase):
     def setUp(self):
         super(__class__, self).setUp()
         preconditions(self.iut)
-        # preconditions(self.lt)
+        preconditions(self.lt)
 
     def tearDown(self):
         super(__class__, self).tearDown()
