@@ -1091,11 +1091,11 @@ def btp2uuid(uuid_len, uu):
         return uuid.UUID(bytes=uu[::-1]).urn[9:].replace('-', '').upper()
 
 
-def gatt_server_fetch_db(iutctl):
-    db = GattDB()
+def gatt_server_fetch_db(iutctl: IutCtl, db: GattDB, start_handle=0x0001,
+                         end_handle=0xffff, type_uuid=None):
     char_val_set = set()
 
-    attrs = gatts_get_attrs(iutctl)
+    attrs = gatts_get_attrs(iutctl, start_handle, end_handle, type_uuid)
     for attr in attrs:
         handle, perm, type_uuid = attr
 
@@ -1114,9 +1114,9 @@ def gatt_server_fetch_db(iutctl):
             uuid = btp2uuid(val_len, val)
 
             if type_uuid == '2800':
-                db.attr_add(handle, GattPrimary(handle, perm, uuid, att_rsp))
+                db.attr_add(handle, GattPrimary(handle, perm, uuid, att_rsp, None))
             else:
-                db.attr_add(handle, GattSecondary(handle, perm, uuid, att_rsp))
+                db.attr_add(handle, GattSecondary(handle, perm, uuid, att_rsp, None))
         elif type_uuid == '2803':
 
             hdr = '<BH'
@@ -1144,8 +1144,6 @@ def gatt_server_fetch_db(iutctl):
             uuid = type_uuid.replace("0x", "").replace("-", "").upper()
 
             db.attr_add(handle, GattCharacteristicDescriptor(handle, perm, uuid, att_rsp, val))
-
-    return db
 
 
 def dec_gatts_get_attrs_rp(data, data_len):
@@ -1204,7 +1202,7 @@ def gatts_get_attrs(iutctl: IutCtl, start_handle=0x0001,
     data_ba.extend(end_hdl_ba)
 
     if type_uuid:
-        uuid_ba = binascii.unhexlify(type_uuid.translate(None, "-"))[::-1]
+        uuid_ba = binascii.unhexlify(type_uuid.replace("-", ""))[::-1]
         data_ba.extend([len(uuid_ba)])
         data_ba.extend(uuid_ba)
     else:
@@ -1398,11 +1396,6 @@ def gattc_disc_all_chrc_find_attrs_rsp(iutctl: IutCtl, exp_chars,
 
             logging.debug("gatt char matched = %r == %r", char, exp_char)
 
-            if store_attrs:
-                gatt = iutctl.stack.gatt
-                gatt.clear_chrs()
-                gatt.add_chrs(char)
-
 
 def gattc_disc_all_chrc(iutctl: IutCtl, bd_addr: BleAddress, start_hdl,
                         stop_hdl,
@@ -1505,13 +1498,13 @@ def gattc_disc_all_desc(iutctl: IutCtl, bd_addr: BleAddress,
     iutctl.btp_worker.send(*GATTC['disc_all_desc'], data=data_ba)
 
 
-def gattc_disc_full(iutctl: IutCtl, bd_addr: BleAddress):
+def gattc_disc_full(iutctl: IutCtl, bd_addr: BleAddress, db: GattDB):
     logging.debug("%s %r", gattc_disc_full.__name__, bd_addr)
 
     gap_wait_for_connection(iutctl)
 
     gattc_disc_prim_svcs(iutctl, bd_addr)
-    gattc_disc_prim_svcs_rsp(iutctl)
+    gattc_disc_prim_svcs_rsp(iutctl, db)
 
     gatt = iutctl.stack.gatt
     db = gatt.gatt_db
@@ -1525,10 +1518,10 @@ def gattc_disc_full(iutctl: IutCtl, bd_addr: BleAddress):
         start, end, _ = value
 
         gattc_find_included(iutctl, bd_addr, start, end)
-        gattc_find_included_rsp(iutctl, False)
+        gattc_find_included_rsp(iutctl, db)
 
         gattc_disc_all_chrc(iutctl, bd_addr, start, end)
-        gattc_disc_all_chrc_rsp(iutctl, False)
+        gattc_disc_all_chrc_rsp(iutctl, db)
 
     handles = list(sorted(db.keys()))
     for hdl in handles:
@@ -1788,7 +1781,8 @@ def gattc_cfg_indicate(iutctl: IutCtl, bd_addr: BleAddress, enable, ccc_hdl):
                   defs.GATT_CFG_INDICATE)
 
 
-def gattc_notification_ev(iutctl: IutCtl, bd_addr: BleAddress, ev_type):
+def gattc_notification_ev(iutctl: IutCtl, bd_addr: BleAddress,
+                          ev_type, handle=None, value=None):
     logging.debug("%s %r %r", gattc_notification_ev.__name__, bd_addr,
                   ev_type)
 
@@ -1800,6 +1794,14 @@ def gattc_notification_ev(iutctl: IutCtl, bd_addr: BleAddress, ev_type):
 
     data_ba = bytearray(bd_addr)
     data_ba.extend([ev_type])
+
+    if handle:
+        data_ba.extend(struct.pack('H', handle))
+
+    if value:
+        value_ba = binascii.unhexlify(value)
+        data_ba.extend(struct.pack('H', len(value_ba)))
+        data_ba.extend(value_ba)
 
     if tuple_data[0][0:len(data_ba)] != data_ba:
         raise BTPError("Error in notification event data")
@@ -1983,13 +1985,8 @@ def gattc_disc_prim_uuid_find_attrs_rsp(iutctl: IutCtl, exp_svcs,
 
             logging.debug("gatt svc matched = %r == %r", svc, exp_svc)
 
-            if store_attrs:
-                gatt = iutctl.stack.gatt
-                gatt.clear_svcs()
-                gatt.add_svcs(svc)
 
-
-def gattc_disc_prim_svcs_rsp(iutctl: IutCtl):
+def gattc_disc_prim_svcs_rsp(iutctl: IutCtl, db: GattDB):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_prim_svcs_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2000,18 +1997,16 @@ def gattc_disc_prim_svcs_rsp(iutctl: IutCtl):
     svcs_tuple = gatt_dec_disc_rsp(tuple_data[0], "service")
     logging.debug("%s %r", gattc_disc_prim_svcs_rsp.__name__, svcs_tuple)
 
-    gatt = iutctl.stack.gatt
-
     for svc in svcs_tuple:
         start_handle = svc[0]
         end_handle = svc[1]
+        uuid = btp2uuid(len(svc[2][0]), svc[2][0])
 
-        uuid_ba = svc[2][0]
-        uuid = binascii.hexlify(uuid_ba[::-1]).upper()
-        gatt.add_attribute("service", (start_handle, end_handle, uuid))
+        db.attr_add(start_handle, GattPrimary(start_handle, 1, uuid,
+                                              0, end_handle))
 
 
-def gattc_disc_prim_uuid_rsp(iutctl: IutCtl, store_rsp=False):
+def gattc_disc_prim_uuid_rsp(iutctl: IutCtl, db: GattDB):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_prim_uuid_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2022,40 +2017,16 @@ def gattc_disc_prim_uuid_rsp(iutctl: IutCtl, store_rsp=False):
     svcs_tuple = gatt_dec_disc_rsp(tuple_data[0], "service")
     logging.debug("%s %r", gattc_disc_prim_uuid_rsp.__name__, svcs_tuple)
 
-    gatt = iutctl.stack.gatt
-
-    if store_rsp:
-        gatt.clear_verify_values()
-
     for svc in svcs_tuple:
-        start_handle = "%04X" % (svc[0],)
-        end_handle = "%04X" % (svc[1],)
+        start_handle = svc[0]
+        end_handle = svc[1]
+        uuid = btp2uuid(len(svc[2][0]), svc[2][0])
 
-        uuid_ba = svc[2][0]
-        uuid = binascii.hexlify(uuid_ba[::-1]).upper()
-
-        gatt.add_attribute("service", (svc[0], svc[1], uuid))
-
-        if store_rsp:
-            # add hyphens to long uuid: 0000-1157-0000-0000-0123-4567-89AB-CDEF
-            if len(uuid) > 4:
-                uuid = "-".join([uuid[i:i + 4] for i in range(0, len(uuid), 4)])
-
-            gatt.add_verify_values(start_handle)
-            gatt.add_verify_values(end_handle)
-
-            # avoid repeated service uuid, it should be verified only once, for
-            # example:
-            # gattc_disc_prim_uuid_rsp ((1, 3, ('\xc9N',)),
-            # (48, 50, ('\xc9N',)), (64, 66, ('\xc9N',)),
-            # (80, 82, ('\xc9N',)), (144, 150, ('\xc9N',)))
-            if uuid not in gatt.verify_values:
-                gatt.add_verify_values(uuid)
-
-            logging.debug("Set verify values to: %r", gatt.verify_values)
+        db.attr_add(start_handle, GattPrimary(start_handle, 1,
+                                              uuid, 0, end_handle))
 
 
-def gattc_find_included_rsp(iutctl: IutCtl, store_rsp=False):
+def gattc_find_included_rsp(iutctl: IutCtl, db: GattDB):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_find_included_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2066,32 +2037,18 @@ def gattc_find_included_rsp(iutctl: IutCtl, store_rsp=False):
     incls_tuple = gatt_dec_disc_rsp(tuple_data[0], "include")
     logging.debug("%s %r", gattc_find_included_rsp.__name__, incls_tuple)
 
-    gatt = iutctl.stack.gatt
-
-    if store_rsp:
-        gatt.clear_verify_values()
-
     for incl in incls_tuple:
-        att_handle = "%04X" % (incl[0][0],)
-        inc_svc_handle = "%04X" % (incl[1][0],)
-        end_grp_handle = "%04X" % (incl[1][1],)
+        att_handle = incl[0][0]
+        inc_svc_handle = incl[1][0]
+        end_grp_handle = incl[1][1]
+        uuid = btp2uuid(len(incl[1][2][0]), incl[1][2][0])
 
-        uuid_ba = incl[1][2][0]
-        uuid = binascii.hexlify(uuid_ba[::-1]).upper()
-
-        gatt.add_attribute("include", (incl[0][0], incl[1][0],
-                                       incl[1][1], uuid))
-
-        if store_rsp:
-            gatt.add_verify_values(att_handle)
-            gatt.add_verify_values(inc_svc_handle)
-            gatt.add_verify_values(end_grp_handle)
-            gatt.add_verify_values(uuid)
-
-            logging.debug("Set verify values to: %r", gatt.verify_values)
+        db.attr_add(att_handle, GattServiceIncluded(att_handle, 1, uuid, 0,
+                                                    inc_svc_handle,
+                                                    end_grp_handle))
 
 
-def gattc_disc_all_chrc_rsp(iutctl: IutCtl, store_rsp=False):
+def gattc_disc_all_chrc_rsp(iutctl: IutCtl, db: GattDB):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_all_chrc_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2102,27 +2059,17 @@ def gattc_disc_all_chrc_rsp(iutctl: IutCtl, store_rsp=False):
     chrcs_tuple = gatt_dec_disc_rsp(tuple_data[0], "characteristic")
     logging.debug("%s %r", gattc_disc_all_chrc_rsp.__name__, chrcs_tuple)
 
-    gatt = iutctl.stack.gatt
-
-    if store_rsp:
-        gatt.clear_verify_values()
-
     for chrc in chrcs_tuple:
-        handle = "%04X" % (chrc[0],)
-        value_handle = "%04X" % (chrc[1],)
+        handle = chrc[0]
+        value_handle = chrc[1]
         props = chrc[2]
-        uuid_ba = chrc[3][0]
-        uuid = binascii.hexlify(uuid_ba[::-1]).upper()
+        uuid = btp2uuid(len(chrc[3][0]), chrc[3][0])
 
-        gatt.add_attribute("characteristic", (chrc[0], chrc[1],
-                                              props, uuid))
-
-        if store_rsp:
-            gatt.add_verify_values(handle)
-            logging.debug("Set verify values to: %r", gatt.verify_values)
+        db.attr_add(handle, GattCharacteristic(handle, 1, uuid, 0,
+                                               props, value_handle))
 
 
-def gattc_disc_chrc_uuid_rsp(iutctl: IutCtl, store_rsp=False):
+def gattc_disc_chrc_uuid_rsp(iutctl: IutCtl, db: GattDB):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_chrc_uuid_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2133,33 +2080,17 @@ def gattc_disc_chrc_uuid_rsp(iutctl: IutCtl, store_rsp=False):
     chrcs_tuple = gatt_dec_disc_rsp(tuple_data[0], "characteristic")
     logging.debug("%s %r", gattc_disc_chrc_uuid_rsp.__name__, chrcs_tuple)
 
-    gatt = iutctl.stack.gatt
-
-    if store_rsp:
-        gatt.clear_verify_values()
-
     for chrc in chrcs_tuple:
-        handle = "%04X" % (chrc[0],)
-        value_handle = "%04X" % (chrc[1],)
+        handle = chrc[0]
+        value_handle = chrc[1]
         props = chrc[2]
-        uuid_ba = chrc[3][0]
-        uuid = binascii.hexlify(uuid_ba[::-1]).upper()
+        uuid = btp2uuid(len(chrc[3][0]), chrc[3][0])
 
-        gatt.add_attribute("characteristic", (chrc[0], chrc[1],
-                                              props, uuid))
-
-        if store_rsp:
-            # add hyphens to long uuid: 0000-1157-0000-0000-0123-4567-89AB-CDEF
-            if len(uuid) > 4:
-                uuid = "-".join([uuid[i:i + 4] for i in range(0, len(uuid), 4)])
-
-            gatt.add_verify_values(handle)
-            gatt.add_verify_values(uuid)
-
-            logging.debug("Set verify values to: %r", gatt.verify_values)
+        db.attr_add(handle, GattCharacteristic(handle, 1, uuid, 0,
+                                               props, value_handle))
 
 
-def gattc_disc_all_desc_rsp(iutctl: IutCtl, store_rsp=False):
+def gattc_disc_all_desc_rsp(iutctl: IutCtl, db: GattDB):
     tuple_hdr, tuple_data = iutctl.btp_worker.read()
     logging.debug("%s received %r %r", gattc_disc_all_desc_rsp.__name__,
                   tuple_hdr, tuple_data)
@@ -2170,23 +2101,12 @@ def gattc_disc_all_desc_rsp(iutctl: IutCtl, store_rsp=False):
     descs_tuple = gatt_dec_disc_rsp(tuple_data[0], "descriptor")
     logging.debug("%s %r", gattc_disc_all_desc_rsp.__name__, descs_tuple)
 
-    gatt = iutctl.stack.gatt
-
-    if store_rsp:
-        gatt.clear_verify_values()
-
     for desc in descs_tuple:
-        handle = "%04X" % (desc[0],)
-        uuid_ba = desc[1][0]
-        uuid = binascii.hexlify(uuid_ba[::-1]).upper()
+        handle = desc[0]
+        uuid = btp2uuid(len(desc[1][0]), desc[1][0])
 
-        gatt.add_attribute("descriptor", (desc[0], uuid))
-
-        if store_rsp:
-            gatt.add_verify_values(handle)
-            gatt.add_verify_values(uuid)
-
-            logging.debug("Set verify values to: %r", gatt.verify_values)
+        db.attr_add(handle, GattCharacteristicDescriptor(handle, 1,
+                                                         uuid, 0, None))
 
 
 att_rsp_str = {0: "No error",
@@ -2220,12 +2140,13 @@ def gattc_read_rsp(iutctl: IutCtl, store_rsp=False, store_val=False,
     if store_rsp or store_val:
         gatt = iutctl.stack.gatt
         gatt.clear_verify_values()
+        val = binascii.hexlify(value[0]).decode().upper()
 
         if store_rsp:
             gatt.add_verify_values(att_rsp_str[rsp])
 
         if store_val:
-            gatt.add_verify_values((binascii.hexlify(value[0])).upper())
+            gatt.add_verify_values(val)
 
 
 def gattc_read_long_rsp(iutctl: IutCtl, store_rsp=False, store_val=False):
