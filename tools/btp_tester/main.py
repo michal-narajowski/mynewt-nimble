@@ -23,7 +23,7 @@ def main():
 
     def suite():
         suite = unittest.TestSuite()
-        suite.addTest(GAPTestCase('test_gattc_discover_primary_uuid',
+        suite.addTest(GAPTestCase('test_gattc_write_long',
                                   mynewt1, mynewt2))
         # suite.addTests(GAPTestCase.init_testcases(mynewt1, mynewt2))
         return suite

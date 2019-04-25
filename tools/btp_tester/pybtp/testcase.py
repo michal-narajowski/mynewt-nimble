@@ -489,7 +489,8 @@ class GAPTestCase(BTPTestCase):
                                       Perm.read | Perm.write,
                                       PTS_DB.CHR_READ_WRITE)
 
-        btp.gatts_set_val(self.lt, char_hdl, "123456")
+        value = "123456"
+        btp.gatts_set_val(self.lt, char_hdl, value)
 
         btp.gatts_start_server(self.lt)
 
@@ -506,7 +507,37 @@ class GAPTestCase(BTPTestCase):
         btp.gattc_read_rsp(self.iut, store_rsp=True, store_val=True)
 
         self.assertEqual(verify_values[0], "No error")
-        self.assertEqual(verify_values[1], "123456")
+        self.assertEqual(verify_values[1], value)
+
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
+        self.assertFalse(self.lt.stack.gap.is_connected())
+        self.assertFalse(self.iut.stack.gap.is_connected())
+
+    def test_gattc_read_long(self):
+        btp.gatts_add_svc(self.lt, 0, PTS_DB.SVC)
+        char_hdl = btp.gatts_add_char(self.lt, 0, Prop.read | Prop.write,
+                                      Perm.read | Perm.write,
+                                      PTS_DB.CHR_READ_WRITE)
+
+        value = "FF" * 280
+        btp.gatts_set_val(self.lt, char_hdl, value)
+
+        btp.gatts_start_server(self.lt)
+
+        connection_procedure(central=self.iut, peripheral=self.lt)
+        self.assertTrue(self.lt.stack.gap.is_connected())
+        self.assertTrue(self.iut.stack.gap.is_connected())
+
+        verify_values = self.iut.stack.gatt.verify_values
+
+        btp.gattc_read_long(self.iut,
+                            self.lt.stack.gap.iut_addr_get(),
+                            char_hdl + 1, 0)
+
+        btp.gattc_read_long_rsp(self.iut, store_rsp=True, store_val=True)
+
+        self.assertEqual(verify_values[0], "No error")
+        self.assertEqual(verify_values[1], value)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
@@ -541,6 +572,41 @@ class GAPTestCase(BTPTestCase):
         val = binascii.hexlify(data[0]).decode().upper()
 
         self.assertEqual(val, "FFFFFF")
+
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
+        self.assertFalse(self.lt.stack.gap.is_connected())
+        self.assertFalse(self.iut.stack.gap.is_connected())
+
+    def test_gattc_write_long(self):
+        btp.gatts_add_svc(self.lt, 0, PTS_DB.SVC)
+        char_hdl = btp.gatts_add_char(self.lt, 0, Prop.read | Prop.write,
+                                      Perm.read | Perm.write,
+                                      PTS_DB.CHR_READ_WRITE)
+
+        init_value = "00" * 280
+        btp.gatts_set_val(self.lt, char_hdl, init_value)
+
+        btp.gatts_start_server(self.lt)
+
+        connection_procedure(central=self.iut, peripheral=self.lt)
+        self.assertTrue(self.lt.stack.gap.is_connected())
+        self.assertTrue(self.iut.stack.gap.is_connected())
+
+        value = "FF" * 280
+        btp.gattc_write_long(self.iut,
+                             self.lt.stack.gap.iut_addr_get(),
+                             char_hdl + 1,
+                             0, value)
+
+        btp.gattc_write_long_rsp(self.iut, store_rsp=True)
+
+        verify_values = self.iut.stack.gatt.verify_values
+        self.assertEqual(verify_values[0], "No error")
+
+        hdl, data = btp.gatts_attr_value_changed_ev(self.lt)
+        recv_val = binascii.hexlify(data[0]).decode().upper()
+
+        self.assertEqual(recv_val, value)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())

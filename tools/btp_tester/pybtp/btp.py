@@ -1704,7 +1704,8 @@ def gattc_write(iutctl: IutCtl, bd_addr: BleAddress, hdl, val, val_mtp=None):
     iutctl.btp_worker.send(*GATTC['write'], data=data_ba)
 
 
-def gattc_write_long(iutctl: IutCtl, bd_addr, hdl, off, val, length=None):
+def gattc_write_long(iutctl: IutCtl, bd_addr: BleAddress, hdl, off, val,
+                     length=None):
     logging.debug("%s %r %r %r %r", gattc_write_long.__name__,
                   hdl, off, val, length)
 
@@ -1721,7 +1722,7 @@ def gattc_write_long(iutctl: IutCtl, bd_addr, hdl, off, val, length=None):
 
     hdl_ba = struct.pack('H', hdl)
     off_ba = struct.pack('H', off)
-    val_ba = binascii.unhexlify(bytearray(val))
+    val_ba = binascii.unhexlify(bytearray(val.encode()))
     val_len_ba = struct.pack('H', len(val_ba))
 
     data_ba = bytearray(bd_addr)
@@ -2162,12 +2163,13 @@ def gattc_read_long_rsp(iutctl: IutCtl, store_rsp=False, store_val=False):
     if store_rsp or store_val:
         gatt = iutctl.stack.gatt
         gatt.clear_verify_values()
+        val = binascii.hexlify(value[0]).decode().upper()
 
         if store_rsp:
             gatt.add_verify_values(att_rsp_str[rsp])
 
         if store_val:
-            gatt.add_verify_values((binascii.hexlify(value[0])).upper())
+            gatt.add_verify_values(val)
 
 
 def gattc_read_multiple_rsp(iutctl: IutCtl, store_val=False, store_rsp=False):
