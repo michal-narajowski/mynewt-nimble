@@ -1,8 +1,10 @@
+import binascii
 import time
 import unittest
 
 from pybtp import btp
-from pybtp.types import IOCap, AdType, UUID
+from pybtp.types import IOCap, AdType, UUID, PTS_DB, Prop, Perm
+from stack.gatt import GattDB, GattCharacteristic
 
 
 def preconditions(iutctl):
@@ -37,6 +39,7 @@ def disconnection_procedure(central, peripheral):
     btp.gap_wait_for_disconnection(peripheral)
     btp.gap_wait_for_disconnection(central,
                                    addr=peripheral.stack.gap.iut_addr_get())
+
 
 class BTPTestCase(unittest.TestCase):
     def __init__(self, testname, iut, lt):
@@ -292,23 +295,6 @@ class GAPTestCase(BTPTestCase):
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
-    def test_gattc_discovery(self):
-        btp.gatts_start_server(self.lt)
-        connection_procedure(central=self.iut, peripheral=self.lt)
-        self.assertTrue(self.lt.stack.gap.is_connected())
-        self.assertTrue(self.iut.stack.gap.is_connected())
-
-        btp.gattc_disc_full(self.iut,
-                            self.lt.stack.gap.iut_addr_get())
-
-        self.iut.stack.gatt.print_db()
-
-        self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
-
-        disconnection_procedure(central=self.iut, peripheral=self.lt)
-        self.assertFalse(self.lt.stack.gap.is_connected())
-        self.assertFalse(self.iut.stack.gap.is_connected())
-
     def test_gattc_discover_primary_svcs(self):
         connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
@@ -317,11 +303,15 @@ class GAPTestCase(BTPTestCase):
         btp.gattc_disc_prim_svcs(self.iut,
                                  self.lt.stack.gap.iut_addr_get())
 
-        btp.gattc_disc_prim_svcs_rsp(self.iut)
+        db = GattDB()
+        server_db = GattDB()
+        btp.gattc_disc_prim_svcs_rsp(self.iut, db)
 
-        self.iut.stack.gatt.print_db()
+        btp.gatt_server_fetch_db(self.lt,
+                                 server_db,
+                                 type_uuid=UUID.primary_svc)
 
-        self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
+        self.assertEqual(db, server_db)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
@@ -336,11 +326,49 @@ class GAPTestCase(BTPTestCase):
                                  self.lt.stack.gap.iut_addr_get(),
                                  UUID.gap_svc)
 
-        btp.gattc_disc_prim_uuid_rsp(self.iut)
+        db = GattDB()
+        server_db = GattDB()
+        btp.gattc_disc_prim_uuid_rsp(self.iut, db)
 
-        self.iut.stack.gatt.print_db()
+        btp.gatt_server_fetch_db(self.lt, server_db,
+                                 type_uuid=UUID.primary_svc)
 
-        self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
+        self.assertTrue(server_db.contains(db))
+
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
+        self.assertFalse(self.lt.stack.gap.is_connected())
+        self.assertFalse(self.iut.stack.gap.is_connected())
+
+    def test_gattc_find_incl_svcs(self):
+        connection_procedure(central=self.iut, peripheral=self.lt)
+        self.assertTrue(self.lt.stack.gap.is_connected())
+        self.assertTrue(self.iut.stack.gap.is_connected())
+
+        btp.gattc_disc_prim_svcs(self.iut,
+                                 self.lt.stack.gap.iut_addr_get())
+
+        db = GattDB()
+        btp.gattc_disc_prim_svcs_rsp(self.iut, db)
+
+        svcs = db.get_services()
+        db.clear()
+
+        for svc in svcs:
+            start_hdl, end_hdl = svc.handle, svc.end_hdl
+
+            btp.gattc_find_included(self.iut,
+                                    self.lt.stack.gap.iut_addr_get(),
+                                    start_hdl, end_hdl)
+
+            btp.gattc_find_included_rsp(self.iut, db)
+
+        server_db = GattDB()
+        btp.gatt_server_fetch_db(self.lt, server_db,
+                                 type_uuid=UUID.include_svc)
+
+        db.print_db()
+        server_db.print_db()
+        self.assertEqual(server_db, db)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
@@ -351,15 +379,31 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
-        btp.gattc_disc_all_chrc(self.iut,
-                                self.lt.stack.gap.iut_addr_get(),
-                                0x0001, 0xffff)
+        btp.gattc_disc_prim_svcs(self.iut,
+                                 self.lt.stack.gap.iut_addr_get())
 
-        btp.gattc_disc_all_chrc_rsp(self.iut)
+        db = GattDB()
+        btp.gattc_disc_prim_svcs_rsp(self.iut, db)
 
-        self.iut.stack.gatt.print_db()
+        svcs = db.get_services()
+        db.clear()
 
-        self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
+        for svc in svcs:
+            start_hdl, end_hdl = svc.handle, svc.end_hdl
+
+            btp.gattc_disc_all_chrc(self.iut,
+                                    self.lt.stack.gap.iut_addr_get(),
+                                    start_hdl, end_hdl)
+
+            btp.gattc_disc_all_chrc_rsp(self.iut, db)
+
+        server_db = GattDB()
+        btp.gatt_server_fetch_db(self.lt, server_db,
+                                 type_uuid=UUID.chrc)
+
+        db.print_db()
+        server_db.print_db()
+        self.assertEqual(server_db, db)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
@@ -374,11 +418,15 @@ class GAPTestCase(BTPTestCase):
                                  self.lt.stack.gap.iut_addr_get(),
                                  0x0001, 0xffff, UUID.device_name)
 
-        btp.gattc_disc_chrc_uuid_rsp(self.iut)
+        db = GattDB()
+        server_db = GattDB()
+        btp.gattc_disc_chrc_uuid_rsp(self.iut, db)
 
-        self.iut.stack.gatt.print_db()
+        btp.gatt_server_fetch_db(self.lt, server_db,
+                                 type_uuid=UUID.chrc)
 
-        self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
+        self.assertGreater(len(db), 0)
+        self.assertTrue(server_db.contains(db))
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
@@ -389,22 +437,62 @@ class GAPTestCase(BTPTestCase):
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
-        btp.gattc_disc_all_desc(self.iut,
-                                self.lt.stack.gap.iut_addr_get(),
-                                0x0001, 0xffff)
+        btp.gattc_disc_prim_svcs(self.iut,
+                                 self.lt.stack.gap.iut_addr_get())
 
-        btp.gattc_disc_all_desc_rsp(self.iut)
+        db = GattDB()
+        btp.gattc_disc_prim_svcs_rsp(self.iut, db)
 
-        self.iut.stack.gatt.print_db()
+        svcs = db.get_services()
 
-        self.assertTrue(len(self.iut.stack.gatt.gatt_db) > 0)
+        for svc in svcs:
+            start_hdl, end_hdl = svc.handle, svc.end_hdl
+
+            btp.gattc_disc_all_chrc(self.iut,
+                                    self.lt.stack.gap.iut_addr_get(),
+                                    start_hdl, end_hdl)
+
+            btp.gattc_disc_all_chrc_rsp(self.iut, db)
+
+        attributes = db.get_attributes()
+        for attr in attributes:
+            if not isinstance(attr, GattCharacteristic):
+                continue
+
+            end_hdl = db.find_characteristic_end(attr.handle)
+            if not end_hdl:
+                continue
+
+            btp.gattc_disc_all_desc(self.iut,
+                                    self.lt.stack.gap.iut_addr_get(),
+                                    attr.value_handle + 1, end_hdl)
+
+            btp.gattc_disc_all_desc_rsp(self.iut, db)
+
+        server_db = GattDB()
+        btp.gatt_server_fetch_db(self.lt, server_db)
+
+        db.print_db()
+        server_db.print_db()
+
+        db_desc = db.get_descriptors()
+        server_db_desc = server_db.get_descriptors()
+        self.assertEqual(server_db_desc, db_desc)
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
-    def test_gattc_read_write(self):
-        value_handle = 37
+    def test_gattc_read(self):
+        btp.gatts_add_svc(self.lt, 0, PTS_DB.SVC)
+        char_hdl = btp.gatts_add_char(self.lt, 0, Prop.read | Prop.write,
+                                      Perm.read | Perm.write,
+                                      PTS_DB.CHR_READ_WRITE)
+
+        btp.gatts_set_val(self.lt, char_hdl, "123456")
+
+        btp.gatts_start_server(self.lt)
+
         connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
@@ -413,90 +501,118 @@ class GAPTestCase(BTPTestCase):
 
         btp.gattc_read(self.iut,
                        self.lt.stack.gap.iut_addr_get(),
-                       value_handle)
+                       char_hdl + 1)
 
         btp.gattc_read_rsp(self.iut, store_rsp=True, store_val=True)
 
         self.assertEqual(verify_values[0], "No error")
-        self.assertEqual(verify_values[1], "00".encode())
+        self.assertEqual(verify_values[1], "123456")
+
+        disconnection_procedure(central=self.iut, peripheral=self.lt)
+        self.assertFalse(self.lt.stack.gap.is_connected())
+        self.assertFalse(self.iut.stack.gap.is_connected())
+
+    def test_gattc_write(self):
+        btp.gatts_add_svc(self.lt, 0, PTS_DB.SVC)
+        char_hdl = btp.gatts_add_char(self.lt, 0, Prop.read | Prop.write,
+                                      Perm.read | Perm.write,
+                                      PTS_DB.CHR_READ_WRITE)
+
+        btp.gatts_set_val(self.lt, char_hdl, "123456")
+
+        btp.gatts_start_server(self.lt)
+
+        connection_procedure(central=self.iut, peripheral=self.lt)
+        self.assertTrue(self.lt.stack.gap.is_connected())
+        self.assertTrue(self.iut.stack.gap.is_connected())
+
+        verify_values = self.iut.stack.gatt.verify_values
 
         btp.gattc_write(self.iut,
                         self.lt.stack.gap.iut_addr_get(),
-                        value_handle,
-                        "01")
+                        char_hdl + 1,
+                        "FFFFFF")
 
         btp.gattc_write_rsp(self.iut, store_rsp=True)
 
         self.assertEqual(verify_values[0], "No error")
 
-        btp.gattc_read(self.iut,
-                       self.lt.stack.gap.iut_addr_get(),
-                       value_handle)
+        hdl, data = btp.gatts_attr_value_changed_ev(self.lt)
+        val = binascii.hexlify(data[0]).decode().upper()
 
-        btp.gattc_read_rsp(self.iut, store_rsp=True, store_val=True)
-
-        self.assertEqual(verify_values[0], "No error")
-        self.assertEqual(verify_values[1], "01".encode())
+        self.assertEqual(val, "FFFFFF")
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_notification(self):
-        value_id = 4
-        cccd_handle = 38
+        btp.gatts_add_svc(self.lt, 0, PTS_DB.SVC)
+        char_hdl = btp.gatts_add_char(self.lt, 0,
+                                      Prop.read | Prop.write |
+                                      Prop.nofity | Prop.indicate,
+                                      Perm.read | Perm.write,
+                                      PTS_DB.CHR_READ_WRITE)
+
+        btp.gatts_start_server(self.lt)
+
         connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_cfg_notify(self.iut,
                              self.lt.stack.gap.iut_addr_get(),
-                             1, cccd_handle)
+                             1, char_hdl + 2)
 
         time.sleep(1)
 
         btp.gatts_set_val(self.lt,
-                          value_id,
+                          char_hdl,
                           "0001")
 
         btp.gattc_notification_ev(self.iut,
                                   self.lt.stack.gap.iut_addr_get(),
-                                  0x01)
+                                  0x01,
+                                  char_hdl + 1,
+                                  "0001")
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
 
     def test_gattc_indication(self):
-        value_id = 4
-        cccd_handle = 38
+        btp.gatts_add_svc(self.lt, 0, PTS_DB.SVC)
+        char_hdl = btp.gatts_add_char(self.lt, 0,
+                                      Prop.read | Prop.write |
+                                      Prop.nofity | Prop.indicate,
+                                      Perm.read | Perm.write,
+                                      PTS_DB.CHR_READ_WRITE)
+
+        btp.gatts_start_server(self.lt)
+
         connection_procedure(central=self.iut, peripheral=self.lt)
         self.assertTrue(self.lt.stack.gap.is_connected())
         self.assertTrue(self.iut.stack.gap.is_connected())
 
         btp.gattc_cfg_indicate(self.iut,
                                self.lt.stack.gap.iut_addr_get(),
-                               1, cccd_handle)
+                               1, char_hdl + 2)
 
         time.sleep(1)
 
         btp.gatts_set_val(self.lt,
-                          value_id,
+                          char_hdl,
                           "0001")
 
         btp.gattc_notification_ev(self.iut,
                                   self.lt.stack.gap.iut_addr_get(),
-                                  0x02)
+                                  0x02,
+                                  char_hdl + 1,
+                                  "0001")
 
         disconnection_procedure(central=self.iut, peripheral=self.lt)
         self.assertFalse(self.lt.stack.gap.is_connected())
         self.assertFalse(self.iut.stack.gap.is_connected())
-
-    def test_gatts_get_attrs(self):
-        btp.gatts_start_server(self.iut)
-
-        db = btp.gatt_server_fetch_db(self.iut)
-        db.print_db()
 
 
 class GAPTestCaseLT2(BTPTestCaseLT2):
