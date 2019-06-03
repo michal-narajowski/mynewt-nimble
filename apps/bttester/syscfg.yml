@@ -57,7 +57,7 @@ syscfg.defs:
 
     BTTESTER_DEBUG:
         description: Enable debug logging
-        value: 1
+        value: 0
 
     BTTESTER_BTP_LOG:
         description: Enable logging BTP traffic
@@ -67,12 +67,12 @@ syscfg.vals:
     OS_MAIN_STACK_SIZE: 12444
     SHELL_TASK: 1
     SHELL_NEWTMGR: 0
-    LOG_LEVEL: 0
+    LOG_LEVEL: 255
     MSYS_1_BLOCK_COUNT: 48
 
-    BLE_MONITOR_RTT: 1
+    BLE_MONITOR_RTT: 0
     CONSOLE_RTT: 0
-    CONSOLE_UART: 1
+    CONSOLE_UART: 0
     RTT_NUM_BUFFERS_UP: 1
     RTT_NUM_BUFFERS_DOWN: 1
 
