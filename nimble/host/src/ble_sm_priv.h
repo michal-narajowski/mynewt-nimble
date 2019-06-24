@@ -324,6 +324,7 @@ int ble_sm_alg_f6(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
                   const uint8_t *r, const uint8_t *iocap, uint8_t a1t,
                   const uint8_t *a1, uint8_t a2t, const uint8_t *a2,
                   uint8_t *check);
+int ble_sm_alg_valid_pub_key(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y);
 int ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
                          uint8_t *our_priv_key, uint8_t *out_dhkey);
 int ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv);

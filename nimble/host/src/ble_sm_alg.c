@@ -419,6 +419,21 @@ ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
 }
 
 int
+ble_sm_alg_valid_pub_key(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y)
+{
+    uint8_t pk[64];
+
+    swap_buf(pk, peer_pub_key_x, 32);
+    swap_buf(&pk[32], peer_pub_key_y, 32);
+
+    if (uECC_valid_public_key(pk, &curve_secp256r1) < 0) {
+        return BLE_HS_EUNKNOWN;
+    }
+
+    return 0;
+}
+
+int
 ble_sm_alg_gen_dhkey(uint8_t *peer_pub_key_x, uint8_t *peer_pub_key_y,
                      uint8_t *our_priv_key, uint8_t *out_dhkey)
 {
