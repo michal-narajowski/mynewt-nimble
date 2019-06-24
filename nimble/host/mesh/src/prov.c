@@ -908,6 +908,20 @@ static void send_pub_key(void)
 		goto done;
 	}
 
+	/* Copy remote key in little-endian for bt_valid_pub_key().
+	 * X and Y halves are swapped independently.
+	 */
+	net_buf_simple_init(buf, 0);
+	sys_memcpy_swap(net_buf_simple_add(buf, 32), &link.conf_inputs[17], 32);
+	sys_memcpy_swap(net_buf_simple_add(buf, 32), &link.conf_inputs[49], 32);
+
+	if (bt_valid_pub_key(buf->om_data)) {
+		BT_ERR("Invalid remote public key");
+		prov_send_fail_msg(PROV_ERR_UNEXP_ERR);
+		atomic_set_bit(link.flags, LINK_INVALID);
+		goto done;
+	}
+
 	prov_buf_init(buf, PROV_PUB_KEY);
 
 	/* Swap X and Y halves independently to big-endian */
@@ -924,8 +938,8 @@ static void send_pub_key(void)
 	 * X and Y halves are swapped independently.
 	 */
 	net_buf_simple_init(buf, 0);
-	sys_memcpy_swap(buf->om_data, &link.conf_inputs[17], 32);
-	sys_memcpy_swap(&buf->om_data[32], &link.conf_inputs[49], 32);
+	sys_memcpy_swap(net_buf_simple_add(buf, 32), &link.conf_inputs[17], 32);
+	sys_memcpy_swap(net_buf_simple_add(buf, 32), &link.conf_inputs[49], 32);
 
 	if (bt_dh_key_gen(buf->om_data, prov_dh_key_cb)) {
 		BT_ERR("Failed to generate DHKey");

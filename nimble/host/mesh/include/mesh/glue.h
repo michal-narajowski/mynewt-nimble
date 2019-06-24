@@ -277,6 +277,7 @@ struct bt_pub_key_cb {
 };
 
 typedef void (*bt_dh_key_cb_t)(const u8_t key[32]);
+int bt_valid_pub_key(const u8_t remote_pk[64]);
 int bt_dh_key_gen(const u8_t remote_pk[64], bt_dh_key_cb_t cb);
 int bt_pub_key_gen(struct bt_pub_key_cb *new_cb);
 uint8_t *bt_pub_key_get(void);

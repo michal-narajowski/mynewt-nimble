@@ -472,6 +472,13 @@ static uint8_t priv[32];
 static bool has_pub = false;
 
 int
+bt_valid_pub_key(const u8_t remote_pk[64])
+{
+    return ble_sm_alg_valid_pub_key((uint8_t *)&remote_pk[0],
+                                    (uint8_t *)&remote_pk[32]);
+}
+
+int
 bt_dh_key_gen(const u8_t remote_pk[64], bt_dh_key_cb_t cb)
 {
     uint8_t dh[32];
