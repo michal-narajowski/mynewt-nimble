@@ -1124,7 +1124,12 @@ static void set_io_cap(const u8_t *data, u16_t len)
 		break;
 	case GAP_IO_CAP_KEYBOARD_DISPLAY:
 		ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_DISP;
-		ble_hs_cfg.sm_mitm = 1;
+		/* A workaround for some PTS testcases so that PTS
+		 * can pair twice: once without authentication and
+		 * the second time with auth.
+		 */
+		ble_hs_cfg.sm_mitm = 0;
+		ble_hs_cfg.sm_bonding = 0;
 		break;
 	case GAP_IO_CAP_NO_INPUT_OUTPUT:
 		ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_NO_IO;
