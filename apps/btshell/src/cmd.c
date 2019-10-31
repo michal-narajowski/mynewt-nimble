@@ -2493,6 +2493,97 @@ static const struct shell_cmd_help keystore_show_help = {
 
 #if NIMBLE_BLE_SM
 /*****************************************************************************
+ * $oob                                                             *
+ *****************************************************************************/
+
+extern struct ble_sm_oob_sc_data oobd_local;
+extern struct ble_sm_oob_sc_data oobd_remote;
+
+static int
+cmd_auth_oob_sc_show(int argc, char **argv)
+{
+    console_printf("Local OOB Data: r=");
+    print_bytes(oobd_local.r, 16);
+    console_printf(" c=");
+    print_bytes(oobd_local.c, 16);
+    console_printf("\n");
+
+    console_printf("Remote OOB Data: r=");
+    print_bytes(oobd_remote.r, 16);
+    console_printf(" c=");
+    print_bytes(oobd_remote.c, 16);
+    console_printf("\n");
+
+    return 0;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param auth_oob_sc_show_params[] = {
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help auth_oob_sc_show_help = {
+    .summary = "",
+    .usage = NULL,
+    .params = auth_oob_sc_show_params,
+};
+#endif
+
+static int
+cmd_auth_oob_sc_set(int argc, char **argv)
+{
+    uint16_t conn_handle;
+    int rc;
+
+    rc = parse_arg_all(argc - 1, argv + 1);
+    if (rc != 0) {
+        return rc;
+    }
+
+    conn_handle = parse_arg_uint16("conn", &rc);
+    if (rc != 0) {
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
+    }
+
+    rc = parse_arg_byte_stream_exact_length("r", oobd_remote.r, 16);
+    if (rc != 0) {
+        console_printf("invalid 'r' parameter\n");
+        return rc;
+    }
+
+    rc = parse_arg_byte_stream_exact_length("c", oobd_remote.c, 16);
+    if (rc != 0) {
+        console_printf("invalid 'c' parameter\n");
+        return rc;
+    }
+
+
+    rc = ble_sm_oob_set_sc_data(conn_handle, &oobd_local, &oobd_remote);
+    if (rc != 0) {
+        console_printf("error providing oob; rc=%d\n", rc);
+        return rc;
+    }
+
+    return 0;
+}
+
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+static const struct shell_param auth_oob_sc_set_params[] = {
+    {"conn", "connection handle, usage: =<UINT16>"},
+    {"r", "usage: =[XX:XX...], len=16 octets"},
+    {"c", "usage: =[XX:XX...], len=16 octets"},
+    {NULL, NULL}
+};
+
+static const struct shell_cmd_help auth_oob_sc_set_help = {
+    .summary = "",
+    .usage = NULL,
+    .params = auth_oob_sc_set_params,
+};
+#endif
+
+/*****************************************************************************
  * $auth-passkey                                                             *
  *****************************************************************************/
 
@@ -4146,6 +4237,20 @@ static const struct shell_cmd btshell_commands[] = {
 #endif
     },
 #if NIMBLE_BLE_SM
+    {
+        .sc_cmd = "show-oob",
+        .sc_cmd_func = cmd_auth_oob_sc_show,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &auth_oob_sc_show_help,
+#endif
+    },
+    {
+        .sc_cmd = "auth-oob",
+        .sc_cmd_func = cmd_auth_oob_sc_set,
+#if MYNEWT_VAL(SHELL_CMD_HELP)
+        .help = &auth_oob_sc_set_help,
+#endif
+    },
     {
         .sc_cmd = "auth-passkey",
         .sc_cmd_func = cmd_auth_passkey,

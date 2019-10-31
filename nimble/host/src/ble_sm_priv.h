@@ -269,6 +269,8 @@ struct ble_sm_proc {
     struct ble_sm_public_key pub_key_peer;
     uint8_t mackey[16];
     uint8_t dhkey[32];
+    const struct ble_sm_oob_sc_data *oobd_local;
+    const struct ble_sm_oob_sc_data *oobd_remote;
 #endif
 };
 
@@ -300,8 +302,8 @@ int ble_sm_alg_c1(uint8_t *k, uint8_t *r,
                   uint8_t iat, uint8_t rat,
                   uint8_t *ia, uint8_t *ra,
                   uint8_t *out_enc_data);
-int ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
-                  uint8_t *out_enc_data);
+int ble_sm_alg_f4(const uint8_t *u, const uint8_t *v, const uint8_t *x,
+                  uint8_t z, uint8_t *out_enc_data);
 int ble_sm_alg_g2(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t *y,
                   uint32_t *passkey);
 int ble_sm_alg_f5(uint8_t *w, uint8_t *n1, uint8_t *n2, uint8_t a1t,

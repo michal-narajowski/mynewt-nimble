@@ -43,6 +43,7 @@
 
 #include <string.h>
 #include <errno.h>
+#include <console/console.h>
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "host/ble_sm.h"
@@ -740,6 +741,9 @@ ble_sm_ioact_state(uint8_t action)
     case BLE_SM_IOACT_NUMCMP:
         return BLE_SM_PROC_STATE_DHKEY_CHECK;
 
+    case BLE_SM_IOACT_OOB_SC:
+        return BLE_SM_PROC_STATE_RANDOM;
+
     case BLE_SM_IOACT_OOB:
     case BLE_SM_IOACT_INPUT:
     case BLE_SM_IOACT_DISP:
@@ -901,14 +905,17 @@ ble_sm_process_result(uint16_t conn_handle, struct ble_sm_result *res)
 
         if (proc != NULL) {
             if (res->execute) {
+                console_printf("execute %d\n", proc->state);
                 ble_sm_exec(proc, res, res->state_arg);
             }
 
             if (res->app_status != 0) {
+                console_printf("rm=1 appstatus == %d\n", res->app_status);
                 rm = 1;
             }
 
             if (proc->state == BLE_SM_PROC_STATE_NONE) {
+                console_printf("rm=1 STATE NONE\n");
                 rm = 1;
             }
 
