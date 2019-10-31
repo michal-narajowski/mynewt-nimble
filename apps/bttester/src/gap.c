@@ -47,6 +47,11 @@ const uint8_t irk[16] = {
 	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
 };
 
+const uint8_t oob[16] = {
+	0x4D, 0x9F, 0x88, 0x5A, 0x6E, 0x03, 0x12, 0xFE,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
 static uint16_t current_settings;
 u8_t own_addr_type;
 static ble_addr_t peer_id_addr;
@@ -195,6 +200,7 @@ static void controller_info(u8_t *data, u16_t len)
 	}
 
 	ble_hs_cfg.sm_mitm = 0;
+	ble_hs_cfg.sm_oob_data_flag = 1;
 
 	supported_settings |= BIT(GAP_SETTINGS_POWERED);
 	supported_settings |= BIT(GAP_SETTINGS_CONNECTABLE);
@@ -673,6 +679,26 @@ static void le_disconnected(struct ble_gap_conn_desc *conn, int reason)
 		    CONTROLLER_INDEX, (u8_t *) &ev, sizeof(ev));
 }
 
+static void auth_passkey_oob(u16_t conn_handle)
+{
+	struct ble_gap_conn_desc desc;
+	struct ble_sm_io pk;
+	int rc;
+
+	SYS_LOG_DBG("");
+
+	rc = ble_gap_conn_find(conn_handle, &desc);
+	if (rc) {
+		return;
+	}
+
+	memcpy(pk.oob, oob, sizeof(oob));
+	pk.action = BLE_SM_IOACT_OOB;
+
+	rc = ble_sm_inject_io(conn_handle, &pk);
+	assert(rc == 0);
+}
+
 static void auth_passkey_display(u16_t conn_handle, unsigned int passkey)
 {
 	struct ble_gap_conn_desc desc;
@@ -760,6 +786,11 @@ static void le_passkey_action(u16_t conn_handle,
 	SYS_LOG_DBG("");
 
 	switch (params->action) {
+	case BLE_SM_IOACT_NONE:
+		break;
+	case BLE_SM_IOACT_OOB:
+		auth_passkey_oob(conn_handle);
+		break;
 	case BLE_SM_IOACT_INPUT:
 		auth_passkey_entry(conn_handle);
 		break;
@@ -770,7 +801,7 @@ static void le_passkey_action(u16_t conn_handle,
 		auth_passkey_numcmp(conn_handle, params->numcmp);
 		break;
 	default:
-		break;
+		assert(0);
 	}
 }
 
