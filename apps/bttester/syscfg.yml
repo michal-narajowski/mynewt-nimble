@@ -51,6 +51,10 @@ syscfg.defs:
         description: Limited advertising timeout
         value: 30000
 
+    BTTESTER_LE_OOB:
+        description: Enable LE OOB pairing
+        value: 0
+
     BTTESTER_BTP_DATA_SIZE_MAX:
         description: Maximum BTP payload
         value: MYNEWT_VAL_BTTESTER_RTT_BUFFER_SIZE_UP
