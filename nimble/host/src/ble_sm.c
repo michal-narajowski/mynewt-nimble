@@ -740,6 +740,9 @@ ble_sm_ioact_state(uint8_t action)
     case BLE_SM_IOACT_NUMCMP:
         return BLE_SM_PROC_STATE_DHKEY_CHECK;
 
+    case BLE_SM_IOACT_OOB_SC:
+        return BLE_SM_PROC_STATE_RANDOM;
+
     case BLE_SM_IOACT_OOB:
     case BLE_SM_IOACT_INPUT:
     case BLE_SM_IOACT_DISP:

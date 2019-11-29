@@ -119,6 +119,9 @@ struct btshell_tx_data_s
 static struct btshell_tx_data_s btshell_tx_data;
 int btshell_full_disc_prev_chr_val;
 
+struct ble_sm_oob_sc_data oobd_local;
+struct ble_sm_oob_sc_data oobd_remote;
+
 #define XSTR(s) STR(s)
 #ifndef STR
 #define STR(s) #s
@@ -2073,7 +2076,21 @@ btshell_on_reset(int reason)
 static void
 btshell_on_sync(void)
 {
+    int rc;
+
     console_printf("Host and controller synced\n");
+
+    rc = ble_sm_oob_sc_generate_data(&oobd_local);
+    if (rc) {
+        console_printf("Error: generating oob data; reason=%d\n", rc);
+        return;
+    }
+
+    console_printf("Local OOB Data: r=");
+    print_bytes(oobd_local.r, 16);
+    console_printf(" c=");
+    print_bytes(oobd_local.c, 16);
+    console_printf("\n");
 }
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
@@ -2435,6 +2452,7 @@ main(int argc, char **argv)
     ble_hs_cfg.sync_cb = btshell_on_sync;
     ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+    ble_hs_cfg.sm_oob_data_flag = 1;
 
     rc = gatt_svr_init();
     assert(rc == 0);

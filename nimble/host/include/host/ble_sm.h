@@ -84,7 +84,24 @@ extern "C" {
 #define BLE_SM_IOACT_INPUT                      2
 #define BLE_SM_IOACT_DISP                       3
 #define BLE_SM_IOACT_NUMCMP                     4
-#define BLE_SM_IOACT_MAX_PLUS_ONE               5
+#define BLE_SM_IOACT_OOB_SC                     5
+#define BLE_SM_IOACT_MAX_PLUS_ONE               6
+
+struct ble_sm_oob_sc_data {
+    /** Random Number. */
+    uint8_t r[16];
+
+    /** Confirm Value. */
+    uint8_t c[16];
+};
+
+int ble_sm_oob_sc_generate_data(struct ble_sm_oob_sc_data *le_sc_oob);
+int ble_sm_oob_get_sc_data(uint16_t conn_handle,
+                           const struct ble_sm_oob_sc_data **oobd_local,
+                           const struct ble_sm_oob_sc_data **oobd_remote);
+int ble_sm_oob_set_sc_data(uint16_t conn_handle,
+                           const struct ble_sm_oob_sc_data *oobd_local,
+                           const struct ble_sm_oob_sc_data *oobd_remote);
 
 struct ble_sm_io {
     uint8_t action;
@@ -96,6 +113,7 @@ struct ble_sm_io {
 };
 
 #if NIMBLE_BLE_SM
+int bt_smp_le_oob_sc_generate_data(struct ble_sm_oob_sc_data *le_sc_oob);
 int ble_sm_inject_io(uint16_t conn_handle, struct ble_sm_io *pkey);
 #else
 #define ble_sm_inject_io(conn_handle, pkey) \

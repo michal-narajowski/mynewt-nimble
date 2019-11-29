@@ -106,7 +106,7 @@ ble_sm_sc_io_action(struct ble_sm_proc *proc, uint8_t *action)
 
     if (pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES ||
         pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES) {
-        *action = BLE_SM_IOACT_OOB;
+        *action = BLE_SM_IOACT_OOB_SC;
     } else if (!(pair_req->authreq & BLE_SM_PAIR_AUTHREQ_MITM) &&
                !(pair_rsp->authreq & BLE_SM_PAIR_AUTHREQ_MITM)) {
 
@@ -125,7 +125,7 @@ ble_sm_sc_io_action(struct ble_sm_proc *proc, uint8_t *action)
         proc->pair_alg = BLE_SM_PAIR_ALG_JW;
         break;
 
-    case BLE_SM_IOACT_OOB:
+    case BLE_SM_IOACT_OOB_SC:
         proc->pair_alg = BLE_SM_PAIR_ALG_OOB;
         proc->flags |= BLE_SM_PROC_F_AUTHENTICATED;
         break;
@@ -221,7 +221,8 @@ ble_sm_sc_responder_verifies_random(struct ble_sm_proc *proc)
     BLE_HS_DBG_ASSERT(proc->flags & BLE_SM_PROC_F_SC);
 
     return proc->pair_alg != BLE_SM_PAIR_ALG_JW &&
-           proc->pair_alg != BLE_SM_PAIR_ALG_NUMCMP;
+           proc->pair_alg != BLE_SM_PAIR_ALG_NUMCMP &&
+           proc->pair_alg != BLE_SM_PAIR_ALG_OOB;
 }
 
 /**
@@ -233,11 +234,11 @@ ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
 {
     int byte;
     int bit;
-    int rc;
 
     switch (proc->pair_alg) {
     case BLE_SM_PAIR_ALG_JW:
     case BLE_SM_PAIR_ALG_NUMCMP:
+    case BLE_SM_PAIR_ALG_OOB:
         proc->ri = 0;
         return 0;
 
@@ -252,10 +253,6 @@ ble_sm_sc_gen_ri(struct ble_sm_proc *proc)
         proc->passkey_bits_exchanged++;
 
         return 0;
-
-    case BLE_SM_PAIR_ALG_OOB:
-        rc = ble_hs_hci_util_rand(&proc->ri, 1);
-        return rc;
 
     default:
         BLE_HS_DBG_ASSERT(0);
@@ -414,8 +411,9 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
     uint8_t rat;
     int rc;
 
-    if (proc->flags & BLE_SM_PROC_F_INITIATOR ||
-        ble_sm_sc_responder_verifies_random(proc)) {
+    if (proc->pair_alg != BLE_SM_PAIR_ALG_OOB && (
+        proc->flags & BLE_SM_PROC_F_INITIATOR ||
+        ble_sm_sc_responder_verifies_random(proc))) {
 
         BLE_HS_LOG(DEBUG, "tk=");
         ble_hs_log_flat_buf(proc->tk, 16);
@@ -487,7 +485,12 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
             res->execute = 1;
         }
     } else {
-        res->execute = 1;
+        if (proc->pair_alg == BLE_SM_PAIR_ALG_OOB &&
+            !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
+            proc->flags |= BLE_SM_PROC_F_ADVANCE_ON_IO;
+        } else {
+            res->execute = 1;
+        }
     }
 }
 
@@ -526,7 +529,11 @@ ble_sm_sc_public_key_exec(struct ble_sm_proc *proc, struct ble_sm_result *res,
     }
 
     if (!(proc->flags & BLE_SM_PROC_F_INITIATOR)) {
-        proc->state = BLE_SM_PROC_STATE_CONFIRM;
+        if (proc->pair_alg == BLE_SM_PAIR_ALG_OOB) {
+            proc->state = BLE_SM_PROC_STATE_RANDOM;
+        } else {
+            proc->state = BLE_SM_PROC_STATE_CONFIRM;
+        }
 
         rc = ble_sm_sc_io_action(proc, &ioact);
         if (rc != 0) {
@@ -587,8 +594,11 @@ ble_sm_sc_public_key_rx(uint16_t conn_handle, struct os_mbuf **om,
             res->enc_cb = 1;
         } else {
             if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-
-                proc->state = BLE_SM_PROC_STATE_CONFIRM;
+                if (proc->pair_alg == BLE_SM_PAIR_ALG_OOB) {
+                    proc->state = BLE_SM_PROC_STATE_RANDOM;
+                } else {
+                    proc->state = BLE_SM_PROC_STATE_CONFIRM;
+                }
 
                 rc = ble_sm_sc_io_action(proc, &ioact);
                 if (rc != 0) {
@@ -777,6 +787,161 @@ ble_sm_sc_dhkey_check_rx(uint16_t conn_handle, struct os_mbuf **om,
         ble_sm_dhkey_check_process(proc, cmd, res);
     }
     ble_hs_unlock();
+}
+
+static bool le_sc_oob_data_check(struct ble_sm_proc *proc,
+                                 bool oobd_local_present,
+                                 bool oobd_remote_present)
+{
+    struct ble_sm_pair_cmd *pair_req, *pair_rsp;
+
+    pair_req = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
+    pair_rsp = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
+    bool req_oob_present = pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES;
+    bool rsp_oob_present = pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES;
+
+    if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
+        if ((req_oob_present != oobd_remote_present) &&
+            (rsp_oob_present != oobd_local_present)) {
+            return false;
+        }
+    } else {
+        if ((req_oob_present != oobd_local_present) &&
+            (rsp_oob_present != oobd_remote_present)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static int le_sc_oob_pairing_continue(struct ble_sm_proc *proc)
+{
+    struct ble_sm_result res;
+
+    memset(&res, 0, sizeof(res));
+
+    if (proc->oobd_remote) {
+        int err;
+        uint8_t c[16];
+
+        err = ble_sm_alg_f4(proc->pub_key_peer.x, proc->pub_key_peer.x,
+                            proc->oobd_remote->r, 0, c);
+        if (err) {
+            return err;
+        }
+
+        bool match = (memcmp(c, proc->oobd_remote->c, sizeof(c)) == 0);
+
+        if (!match) {
+            /* Random number mismatch. */
+            res.sm_err = BLE_SM_ERR_OOB;
+            res.app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB);
+            res.enc_cb = 1;
+        } else {
+            if ((proc->flags & BLE_SM_PROC_F_INITIATOR) ||
+                (!(proc->flags & BLE_SM_PROC_F_INITIATOR) &&
+                 (proc->flags & BLE_SM_PROC_F_ADVANCE_ON_IO))) {
+                res.execute = 1;
+            }
+        };
+    }
+
+    ble_sm_process_result(proc->conn_handle, &res);
+    return 0;
+}
+
+int
+ble_sm_oob_set_sc_data(uint16_t conn_handle,
+                       const struct ble_sm_oob_sc_data *oobd_local,
+                       const struct ble_sm_oob_sc_data *oobd_remote)
+{
+    struct ble_sm_proc *proc;
+
+    ble_hs_lock();
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
+    if (!proc) {
+        console_printf("proc not found\n");
+        ble_hs_unlock();
+        return BLE_HS_ENOENT;
+    }
+
+    if (proc->flags & BLE_SM_PROC_F_IO_INJECTED) {
+        ble_hs_unlock();
+        return BLE_HS_EALREADY;
+    }
+
+    if (!le_sc_oob_data_check(proc, (oobd_local != NULL),
+                              (oobd_remote != NULL))) {
+        console_printf("Data check\n");
+        ble_hs_unlock();
+        return BLE_HS_EINVAL;
+    }
+
+    proc->oobd_local = oobd_local;
+    proc->oobd_remote = oobd_remote;
+
+    proc->flags |= BLE_SM_PROC_F_IO_INJECTED;
+
+    ble_hs_unlock();
+    return le_sc_oob_pairing_continue(proc);
+}
+
+int
+ble_sm_oob_get_sc_data(uint16_t conn_handle,
+                       const struct ble_sm_oob_sc_data **oobd_local,
+                       const struct ble_sm_oob_sc_data **oobd_remote)
+{
+    struct ble_sm_proc *proc;
+
+    ble_hs_lock();
+
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_NONE, -1, NULL);
+    if (!proc) {
+        ble_hs_unlock();
+        return BLE_HS_EINVAL;
+    }
+
+    if (!proc->oobd_local && !proc->oobd_remote) {
+        ble_hs_unlock();
+        return BLE_HS_EINVAL;
+    }
+
+    if (oobd_local) {
+        *oobd_local = proc->oobd_local;
+    }
+
+    if (oobd_remote) {
+        *oobd_remote = proc->oobd_remote;
+    }
+
+    ble_hs_unlock();
+
+    return 0;
+}
+
+int
+ble_sm_oob_sc_generate_data(struct ble_sm_oob_sc_data *le_sc_oob)
+{
+    int rc;
+
+    rc = ble_sm_sc_ensure_keys_generated();
+    if (rc) {
+        return rc;
+    }
+
+    rc = ble_hs_hci_util_rand(le_sc_oob->r, 16);
+    if (rc) {
+        return rc;
+    }
+
+    rc = ble_sm_alg_f4(ble_sm_sc_pub_key, ble_sm_sc_pub_key, le_sc_oob->r, 0,
+                        le_sc_oob->c);
+    if (rc) {
+        return rc;
+    }
+
+    return 0;
 }
 
 void
