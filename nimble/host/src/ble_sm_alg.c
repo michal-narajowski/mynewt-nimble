@@ -224,8 +224,8 @@ ble_sm_alg_aes_cmac(const uint8_t *key, const uint8_t *in, size_t len,
 }
 
 int
-ble_sm_alg_f4(uint8_t *u, uint8_t *v, uint8_t *x, uint8_t z,
-              uint8_t *out_enc_data)
+ble_sm_alg_f4(const uint8_t *u, const uint8_t *v, const uint8_t *x,
+              uint8_t z, uint8_t *out_enc_data)
 {
     uint8_t xs[16];
     uint8_t m[65];
