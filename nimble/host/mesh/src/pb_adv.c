@@ -118,9 +118,8 @@ struct prov_rx {
 	uint8_t gpc;
 };
 
-static struct os_mbuf rx_buf = { .om_len = 65 };
-
-static struct pb_adv link = { .rx = { .buf = &rx_buf } };
+static struct os_mbuf *rx_buf;
+struct pb_adv link;
 
 static void gen_prov_ack_send(uint8_t xact_id);
 static void link_open(struct prov_rx *rx, struct os_mbuf *buf);
@@ -204,7 +203,11 @@ static void reset_adv_link(void)
 		link.tx.id = XACT_ID_NVAL;
 	}
 	link.tx.pending_ack = XACT_ID_NVAL;
-	link.rx.buf = &rx_buf;
+	if (!rx_buf) {
+		rx_buf = NET_BUF_SIMPLE(65);
+	}
+	net_buf_simple_init(rx_buf, 0);
+	link.rx.buf = rx_buf;
 	os_mbuf_reset(link.rx.buf);
 }
 
@@ -723,7 +726,7 @@ static void link_open(struct prov_rx *rx, struct os_mbuf *buf)
 
 	if (atomic_test_bit(link.flags, ADV_LINK_ACTIVE)) {
 		/* Send another link ack if the provisioner missed the last */
-		if (link.id == rx->link_id && link.tx.id == 0x7F) {
+		if (link.id == rx->link_id) {
 			BT_DBG("Resending link ack");
 			bearer_ctl_send(LINK_ACK, NULL, 0, false);
 		} else {
