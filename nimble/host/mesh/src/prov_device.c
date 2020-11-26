@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define MESH_LOG_MODULE BLE_MESH_PROV_DEVICE_LOG
+#define MESH_LOG_MODULE BLE_MESH_PROV_LOG
 
 #include "testing.h"
 #include "crypto.h"

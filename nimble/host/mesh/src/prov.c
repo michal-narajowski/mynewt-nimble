@@ -47,6 +47,7 @@ int bt_mesh_prov_reset_state(void (*func)(const uint8_t key[64]))
 		bt_mesh_attention(NULL, 0);
 	}
 
+	atomic_clear(bt_mesh_prov_link.flags);
 	(void)memset((uint8_t *)&bt_mesh_prov_link + offset, 0,
 		     sizeof(bt_mesh_prov_link) - offset);
 
@@ -103,7 +104,7 @@ int bt_mesh_prov_auth(uint8_t method, uint8_t action, uint8_t size)
 			return -EINVAL;
 		}
 
-		memset(bt_mesh_prov_link.auth, 0, sizeof(bt_mesh_prov_link.auth));
+		(void)memset(bt_mesh_prov_link.auth, 0, sizeof(bt_mesh_prov_link.auth));
 		return 0;
 	case AUTH_METHOD_STATIC:
 		if (action || size) {

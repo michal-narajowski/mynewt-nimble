@@ -6,6 +6,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
+#include "syscfg/syscfg.h"
+#define MESH_LOG_MODULE BLE_MESH_PROV_LOG
+
 #include <stdint.h>
 #include <string.h>
 #include "mesh/mesh.h"
@@ -18,10 +22,6 @@
 #include "beacon.h"
 #include "prov.h"
 #include "mesh/glue.h"
-
-#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_PROV)
-#define LOG_MODULE_NAME bt_mesh_pb_adv
-#include "log/log.h"
 
 #define GPCF(gpc)           (gpc & 0x03)
 #define GPC_START(last_seg) (((last_seg) << 2) | 0x00)
@@ -119,7 +119,7 @@ struct prov_rx {
 };
 
 static struct os_mbuf *rx_buf;
-struct pb_adv link;
+static struct pb_adv link;
 
 static void gen_prov_ack_send(uint8_t xact_id);
 static void link_open(struct prov_rx *rx, struct os_mbuf *buf);
@@ -454,7 +454,7 @@ static void gen_prov_start(struct prov_rx *rx, struct os_mbuf *buf)
 
 	link.rx.last_seg = START_LAST_SEG(rx->gpc);
 	if ((link.rx.seg & BIT(0)) &&
-	    (find_msb_set(~link.rx.seg) >= link.rx.last_seg)) {
+	    (find_msb_set((~link.rx.seg) & SEG_NVAL) - 1 > link.rx.last_seg)) {
 		BT_ERR("Invalid segment index %u", seg);
 		prov_failed(PROV_ERR_NVAL_FMT);
 		return;
@@ -560,7 +560,8 @@ static void send_reliable(void)
 
 static void prov_retransmit(struct ble_npl_event *work)
 {
-	int i, timeout;
+	int32_t timeout_ms;
+	int i;
 
 	BT_DBG("");
 
@@ -575,12 +576,12 @@ static void prov_retransmit(struct ble_npl_event *work)
 	 * message until CLOSING_TIMEOUT has elapsed.
 	 */
 	if (atomic_test_bit(link.flags, ADV_LINK_CLOSING)) {
-		timeout = CLOSING_TIMEOUT;
+		timeout_ms = CLOSING_TIMEOUT;
 	} else {
-		timeout = TRANSACTION_TIMEOUT;
+		timeout_ms = TRANSACTION_TIMEOUT;
 	}
 
-	if (k_uptime_get() - link.tx.start > timeout) {
+	if (k_uptime_get() - link.tx.start > timeout_ms) {
 		if (atomic_test_bit(link.flags, ADV_LINK_CLOSING)) {
 			close_link(PROV_BEARER_LINK_STATUS_SUCCESS);
 		} else {
