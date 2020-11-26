@@ -679,7 +679,7 @@ static void seg_rx_assemble(struct seg_rx *rx, struct os_mbuf *buf,
 {
 	int i;
 
-	os_mbuf_reset(buf);
+	net_buf_simple_reset(buf);
 
 	for (i = 0; i <= rx->seg_n; i++) {
 		net_buf_simple_add_mem(buf, rx->seg[i],
@@ -709,7 +709,7 @@ static int sdu_try_decrypt(struct bt_mesh_net_rx *rx, const uint8_t key[16],
 		seg_rx_assemble(ctx->seg, ctx->buf, ctx->crypto.aszmic);
 	}
 
-	os_mbuf_reset(ctx->sdu);
+	net_buf_simple_reset(ctx->sdu);
 
 	return bt_mesh_app_decrypt(key, &ctx->crypto, ctx->buf, ctx->sdu);
 }

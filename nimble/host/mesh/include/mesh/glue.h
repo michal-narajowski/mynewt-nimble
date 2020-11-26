@@ -236,10 +236,9 @@ static inline void net_buf_simple_init(struct os_mbuf *buf,
 #define net_buf_simple_init_with_data(buf, data, size)  \
     os_mbuf_copyinto(buf, 0, data, size);
 
-static inline void os_mbuf_reset(struct os_mbuf *om)
+static inline void net_buf_simple_reset(struct os_mbuf *om)
 {
-    om->om_len = 0;
-    om->om_data = om->om_databuf;
+    net_buf_simple_init(om, 0);
 }
 
 void net_buf_put(struct ble_npl_eventq *fifo, struct os_mbuf *buf);

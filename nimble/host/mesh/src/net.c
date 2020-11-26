@@ -550,7 +550,7 @@ static bool net_decrypt(struct bt_mesh_net_rx *rx, struct os_mbuf *in,
 	BT_DBG("IVI %u net->iv_index 0x%08x", IVI(in->om_data), bt_mesh.iv_index);
 
 	rx->old_iv = (IVI(in->om_data) != (bt_mesh.iv_index & 0x01));
-	os_mbuf_reset(out);
+	net_buf_simple_reset(out);
 	net_buf_simple_add_mem(out, in->om_data, in->om_len);
 
 	if (bt_mesh_net_obfuscate(out->om_data, BT_MESH_NET_IVI_RX(rx),

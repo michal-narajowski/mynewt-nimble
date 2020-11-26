@@ -36,6 +36,8 @@ static void pub_key_ready(const uint8_t *pkey)
 
 int bt_mesh_prov_reset_state(void (*func)(const uint8_t key[64]))
 {
+	BT_DBG("bt_mesh_prov_reset_state");
+
 	int err;
 	static struct bt_pub_key_cb pub_key_cb;
 	const size_t offset = offsetof(struct bt_mesh_prov_link, dhkey);
@@ -279,15 +281,21 @@ static void prov_link_opened(const struct prov_bearer *bearer, void *cb_data)
 {
 	atomic_set_bit(bt_mesh_prov_link.flags, LINK_ACTIVE);
 
+	BT_ERR("bt_mesh_prov->link_open");
 	if (bt_mesh_prov->link_open) {
 		bt_mesh_prov->link_open(bearer->type);
 	}
 
+	BT_ERR("bt_mesh_prov_link.bearer");
 	bt_mesh_prov_link.bearer = bearer;
 
+	BT_ERR("bt_mesh_prov_link.role->link_opened");
+	BT_ERR("%p", bt_mesh_prov_link.role);
+	BT_ERR("%p", bt_mesh_prov_link.role->link_opened);
 	if (bt_mesh_prov_link.role->link_opened) {
 		bt_mesh_prov_link.role->link_opened();
 	}
+	BT_ERR("done");
 }
 
 static void prov_link_closed(const struct prov_bearer *bearer, void *cb_data,
@@ -331,6 +339,8 @@ void bt_mesh_prov_complete(uint16_t net_idx, uint16_t addr)
 
 void bt_mesh_prov_reset(void)
 {
+	BT_DBG("bt_mesh_prov_reset");
+
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV)) {
 		pb_adv_reset();
 	}

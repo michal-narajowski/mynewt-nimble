@@ -128,10 +128,13 @@ static void link_close(struct prov_rx *rx, struct os_mbuf *buf);
 
 static void buf_sent(int err, void *user_data)
 {
+	BT_DBG("buf_send");
+
 	if (!link.tx.buf[0]) {
 		return;
 	}
 
+	BT_DBG("submit retransmit");
 	k_delayed_work_submit(&link.tx.retransmit, RETRANSMIT_TIMEOUT);
 }
 
@@ -206,9 +209,8 @@ static void reset_adv_link(void)
 	if (!rx_buf) {
 		rx_buf = NET_BUF_SIMPLE(65);
 	}
-	net_buf_simple_init(rx_buf, 0);
 	link.rx.buf = rx_buf;
-	os_mbuf_reset(link.rx.buf);
+	net_buf_simple_reset(link.rx.buf);
 }
 
 static void close_link(enum prov_bearer_link_status reason)
@@ -343,7 +345,7 @@ static void gen_prov_cont(struct prov_rx *rx, struct os_mbuf *buf)
 
 		link.rx.id = rx->xact_id;
 
-		os_mbuf_reset(link.rx.buf);
+		net_buf_simple_reset(link.rx.buf);
 		link.rx.seg = SEG_NVAL;
 		link.rx.last_seg = SEG_NVAL;
 
@@ -430,12 +432,12 @@ static void gen_prov_start(struct prov_rx *rx, struct os_mbuf *buf)
 		return;
 	}
 
-	os_mbuf_reset(link.rx.buf);
+	net_buf_simple_reset(link.rx.buf);
 	link.rx.buf->om_len = net_buf_simple_pull_be16(buf);
 	link.rx.id = rx->xact_id;
 	link.rx.fcs = net_buf_simple_pull_u8(buf);
 
-	BT_DBG("len %u last_seg %u total_len %u fcs 0x%02x", buf->om_len,
+	BT_DBG("%p len %u last_seg %u total_len %u fcs 0x%02x", link.rx.buf, buf->om_len,
 	       START_LAST_SEG(rx->gpc), link.rx.buf->om_len, link.rx.fcs);
 
 	if (link.rx.buf->om_len < 1) {
@@ -744,7 +746,7 @@ static void link_open(struct prov_rx *rx, struct os_mbuf *buf)
 
 	link.id = rx->link_id;
 	atomic_set_bit(link.flags, ADV_LINK_ACTIVE);
-	os_mbuf_reset(link.rx.buf);
+	net_buf_simple_reset(link.rx.buf);
 
 	bearer_ctl_send(LINK_ACK, NULL, 0, false);
 
@@ -824,7 +826,7 @@ static int prov_link_open(const uint8_t uuid[16], int32_t timeout,
 	link.cb = cb;
 	link.cb_data = cb_data;
 
-	os_mbuf_reset(link.rx.buf);
+	net_buf_simple_reset(link.rx.buf);
 
 	bearer_ctl_send(LINK_OPEN, uuid, 16, true);
 
@@ -863,6 +865,12 @@ void pb_adv_init(void)
 {
 	k_delayed_work_init(&link.prot_timer, protocol_timeout);
 	k_delayed_work_init(&link.tx.retransmit, prov_retransmit);
+
+    if (!rx_buf) {
+        rx_buf = NET_BUF_SIMPLE(65);
+    }
+    link.rx.buf = rx_buf;
+    net_buf_simple_reset(link.rx.buf);
 }
 
 void pb_adv_reset(void)

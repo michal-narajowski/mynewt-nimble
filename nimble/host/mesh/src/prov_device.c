@@ -526,6 +526,8 @@ static const struct bt_mesh_prov_role role_device = {
 
 int bt_mesh_prov_enable(bt_mesh_prov_bearer_t bearers)
 {
+	BT_DBG("bt_mesh_prov_enable");
+
 	if (bt_mesh_is_provisioned()) {
 		return -EALREADY;
 	}
@@ -540,6 +542,7 @@ int bt_mesh_prov_enable(bt_mesh_prov_bearer_t bearers)
 		pb_gatt.link_accept(bt_mesh_prov_bearer_cb_get(), NULL);
 	}
 
+	BT_DBG("bt_mesh_prov_link.role = &role_device");
 	bt_mesh_prov_link.role = &role_device;
 
 	return 0;
